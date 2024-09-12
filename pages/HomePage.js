@@ -25,7 +25,7 @@ export default function HomePage() {
       friend: 'Friend 1',
       item: 'Item A',
       time: '10 minutes ago',
-      description: 'A cool new gadget.',
+      description: 'Super excited for this gadget!',
       image: require('../assets/item.png'),
     },
     {
@@ -33,7 +33,7 @@ export default function HomePage() {
       friend: 'Friend 2',
       item: 'Item B',
       time: '1 hour ago',
-      description: 'A trendy pair of sneakers.',
+      description: 'These sneakers will be super comfortable!',
       image: require('../assets/item.png'),
     },
     {
@@ -41,7 +41,7 @@ export default function HomePage() {
       friend: 'Friend 3',
       item: 'Item C',
       time: 'Yesterday',
-      description: 'A delicious box of chocolates.',
+      description: 'The chocolates will be delicious!',
       image: require('../assets/item.png'),
     },
   ];
@@ -57,7 +57,10 @@ export default function HomePage() {
           renderItem={({ item }) => {
             if (item.id === 'search') {
               return (
-                <TouchableOpacity style={styles.searchBubble}>
+                <TouchableOpacity 
+                  style={styles.searchBubble}
+                  onPress={() => navigation.navigate('SearchUsersPage')} // Navigate to SearchUsersPage
+                >
                   <Ionicons name="search" size={24} color="#ffffff" />
                 </TouchableOpacity>
               );

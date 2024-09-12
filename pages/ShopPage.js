@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, FlatList, StyleSheet, TouchableOpacity, TextInput, ScrollView, Text, Platform, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -17,6 +17,21 @@ const categories = [
 
 export default function ShopPage() {
   const navigation = useNavigation();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredItems, setFilteredItems] = useState(sampleItems);
+
+  // Function to handle search input
+  const handleSearch = (query) => {
+    setSearchQuery(query);
+    if (query.trim() === '') {
+      setFilteredItems(sampleItems); // Reset to all items if search is empty
+    } else {
+      const filtered = sampleItems.filter((item) =>
+        item.name.toLowerCase().includes(query.toLowerCase())
+      );
+      setFilteredItems(filtered);
+    }
+  };
 
   // Reusable component for rendering rows of items
   const renderItemsRow = (title, data) => (
@@ -31,7 +46,7 @@ export default function ShopPage() {
             style={styles.itemContainer}
             onPress={() => navigation.navigate('ItemPage', { item })}
           >
-            <Text style={styles.itemName}>{item.name}</Text>
+            <Text style={styles.itemName}>{item.name}</Text> 
           </TouchableOpacity>
         )}
         showsHorizontalScrollIndicator={false}
@@ -42,16 +57,31 @@ export default function ShopPage() {
   return (
     <View style={styles.container}>
       <View style={styles.topBar}>
-        <TextInput style={styles.searchBar} placeholder="Search for items" />
-        <TouchableOpacity style={styles.cartIcon}>
+        <TextInput
+          style={styles.searchBar}
+          placeholder="Search for items"
+          value={searchQuery}
+          onChangeText={handleSearch}
+        />
+        <TouchableOpacity
+          style={styles.cartIcon}
+          onPress={() => navigation.navigate('CartPage', { cart: sampleItems })}
+        >
           <Ionicons name="cart-outline" size={28} color="#000" />
         </TouchableOpacity>
       </View>
 
       <ScrollView>
-        {renderItemsRow('Recently Posted', sampleItems)}
-        {renderItemsRow('Viewed by Friends', sampleItems)}
-        {renderItemsRow('Recommended for You', sampleItems)}
+        {/* Display filtered search results if a search query is present */}
+        {searchQuery ? (
+          renderItemsRow('Search Results', filteredItems)
+        ) : (
+          <>
+            {renderItemsRow('Recently Posted', sampleItems)}
+            {renderItemsRow('Viewed by Friends', sampleItems)}
+            {renderItemsRow('Recommended for You', sampleItems)}
+          </>
+        )}
 
         <Text style={styles.categoryTitle}>Search by Category</Text>
         <View style={styles.categoryContainer}>
