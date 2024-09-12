@@ -13,6 +13,7 @@ import SearchPage from './pages/SearchPage';
 import SellingPage from './pages/SellingPage';
 import ProfilePage from './pages/ProfilePage';
 import ItemDetailScreen from './pages/HomePages/ItemDetailScreen'; 
+import ItemPage from './pages/ItemPage'; // Import ItemPage
 
 // Create Bottom Tab Navigator
 const Tab = createBottomTabNavigator();
@@ -23,10 +24,10 @@ function HomeStack() {
   return (
     <Stack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: '#ffffff' }, 
-        headerTintColor: '#58A4B0', 
+        headerStyle: { backgroundColor: '#ffffff' },
+        headerTintColor: '#58A4B0',
         headerTitleStyle: { color: '#000' },
-        headerTitleAlign: 'center', 
+        headerTitleAlign: 'center',
       }}
     >
       <Stack.Screen 
@@ -37,9 +38,12 @@ function HomeStack() {
       <Stack.Screen 
         name="ItemDetail" 
         component={ItemDetailScreen} 
-        options={{ 
-          title: 'Purchase', 
-        }}
+        options={{ title: 'Purchase' }} 
+      />
+      <Stack.Screen 
+        name="ItemPage" 
+        component={ItemPage} 
+        options={{ title: 'Item Details' }} 
       />
     </Stack.Navigator>
   );
@@ -70,9 +74,9 @@ export default function App() {
               tabBarActiveTintColor: '#58A4B0',
               tabBarInactiveTintColor: 'gray',
               tabBarStyle: {
-                height: Platform.OS === 'ios' ? 90 : 70, // Adjust height for Android and iOS
-                paddingBottom: Platform.OS === 'ios' ? 30 : 15, // Add padding for iOS/Android
-                paddingTop: 10, // Padding at the top for both platforms
+                height: Platform.OS === 'ios' ? 90 : 70,
+                paddingBottom: Platform.OS === 'ios' ? 30 : 15,
+                paddingTop: 10,
                 shadowColor: '#000',
                 shadowOffset: { width: 0, height: -2 },
                 shadowOpacity: 0.1,
@@ -99,6 +103,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0, // Ensure the padding is only for Android
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0, // Ensure padding is only for Android
   },
 });

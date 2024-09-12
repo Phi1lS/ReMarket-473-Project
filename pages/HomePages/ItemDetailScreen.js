@@ -2,18 +2,19 @@ import React from 'react';
 import { View, TextInput, Image, StyleSheet, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from 'react-native-paper';
+import { useNavigation } from '@react-navigation/native';
 
 export default function ItemDetailScreen({ route }) {
   const { item } = route.params; // Get the item data passed via navigation
+  const navigation = useNavigation(); // Use navigation hook
 
-  // Sample comments
   const comments = [
     {
       id: 1,
       name: 'User1',
       comment: 'This looks awesome! Where did you get it?',
       time: '2 hours ago',
-      profilePic: require('../../assets/avatar.png'), // Example avatar
+      profilePic: require('../../assets/avatar.png'), 
     },
     {
       id: 2,
@@ -51,10 +52,12 @@ export default function ItemDetailScreen({ route }) {
           </View>
         </View>
 
-        {/* Item Image */}
-        <Image source={item.image} style={styles.itemImage} />
+        {/* Clickable Item Image */}
+        <TouchableOpacity onPress={() => navigation.navigate('ItemPage', { item })}>
+          <Image source={item.image} style={styles.itemImage} />
+        </TouchableOpacity>
 
-        {/* Heart Icon Only */}
+        {/* Heart Icon */}
         <View style={styles.purchaseActions}>
           <TouchableOpacity>
             <Ionicons name="heart-outline" size={28} color="#333" />
