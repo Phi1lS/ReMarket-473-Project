@@ -1,14 +1,14 @@
 import React from 'react';
-import { View, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, FlatList, StyleSheet, TouchableOpacity, Platform, StatusBar } from 'react-native';
 import { Avatar, Text } from 'react-native-paper';
-import { Ionicons } from '@expo/vector-icons'; // For icons
-import { useNavigation } from '@react-navigation/native'; // To handle navigation
+import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 
-// Import the local avatar image
+// Use avatar.png as a placeholder
 const avatarPlaceholder = require('../assets/avatar.png');
 
 export default function HomePage() {
-  const navigation = useNavigation(); // Get navigation object
+  const navigation = useNavigation();
 
   const friends = [
     { id: 1, name: 'Friend 1', profilePic: avatarPlaceholder },
@@ -26,7 +26,7 @@ export default function HomePage() {
       item: 'Item A',
       time: '10 minutes ago',
       description: 'A cool new gadget.',
-      image: require('../assets/item.png'), // Example image for the item
+      image: require('../assets/item.png'),
     },
     {
       id: 2,
@@ -34,7 +34,7 @@ export default function HomePage() {
       item: 'Item B',
       time: '1 hour ago',
       description: 'A trendy pair of sneakers.',
-      image: require('../assets/item.png'), // Example image for the item
+      image: require('../assets/item.png'),
     },
     {
       id: 3,
@@ -42,7 +42,7 @@ export default function HomePage() {
       item: 'Item C',
       time: 'Yesterday',
       description: 'A delicious box of chocolates.',
-      image: require('../assets/item.png'), // Example image for the item
+      image: require('../assets/item.png'),
     },
   ];
 
@@ -52,7 +52,7 @@ export default function HomePage() {
       <View style={styles.topBarContainer}>
         <FlatList
           horizontal
-          data={[{ id: 'search' }, ...friends]} // Add search as the first element
+          data={[{ id: 'search' }, ...friends]} 
           keyExtractor={(item) => item.id.toString()}
           renderItem={({ item }) => {
             if (item.id === 'search') {
@@ -67,7 +67,7 @@ export default function HomePage() {
                   <Avatar.Image
                     size={50}
                     source={item.profilePic}
-                    style={styles.avatar}
+                    style={styles.avatar} // Teal background for friend avatars
                   />
                   <Text style={styles.avatarLabel}>{item.name}</Text>
                 </View>
@@ -85,26 +85,30 @@ export default function HomePage() {
         renderItem={({ item }) => (
           <TouchableOpacity onPress={() => navigation.navigate('ItemDetail', { item })}>
             <View style={styles.purchaseRow}>
-              {/* Top Section with Profile Picture and Name */}
               <View style={styles.purchaseTop}>
-                <Avatar.Image size={50} source={item.profilePic} style={styles.purchaseAvatar} />
+                <Avatar.Image 
+                  size={50} 
+                  source={item.profilePic} 
+                  style={styles.purchaseAvatar} // Teal background for avatars in purchase list
+                />
                 <View style={styles.purchaseDetails}>
                   <Text style={styles.purchaseFriend}>{item.friend}</Text>
                   <Text style={styles.purchaseText}>purchased {item.item}</Text>
                   <Text style={styles.purchaseTime}>{item.time}</Text>
-                  {/* Space between time and description */}
                   <View style={styles.descriptionSpacing}>
                     <Text style={styles.purchaseDescription}>{item.description}</Text>
                   </View>
                 </View>
               </View>
 
-              {/* Bottom Section with Heart and Comment Icons */}
               <View style={styles.purchaseActions}>
                 <TouchableOpacity>
                   <Ionicons name="heart-outline" size={28} color="#333" />
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.commentIconWrapper}>
+                <TouchableOpacity 
+                  style={styles.commentIconWrapper} 
+                  onPress={() => navigation.navigate('ItemDetail', { item })}
+                >
                   <Ionicons name="chatbubble-outline" size={28} color="#333" />
                 </TouchableOpacity>
               </View>
@@ -122,10 +126,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f9f9f9',
-    paddingHorizontal: 0, // Remove padding from left and right
+    paddingTop: Platform.OS === 'ios' ? 60 : StatusBar.currentHeight + 15,
   },
   topBarContainer: {
-    width: '100%', // Full width of the screen
+    width: '100%',
     backgroundColor: '#ffffff',
     padding: 10,
     marginBottom: 20,
@@ -133,13 +137,13 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 5,
-    elevation: 3, // Android shadow
+    elevation: 3,
   },
   searchBubble: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#58A4B0', // ReMarket Blue
+    backgroundColor: '#58A4B0',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
@@ -150,17 +154,14 @@ const styles = StyleSheet.create({
   },
   avatar: {
     marginBottom: 5,
-    backgroundColor: '#4fd1c5', // ReMarket Teal for avatar backgrounds
-  },
-  purchaseAvatar: {
-    backgroundColor: '#4fd1c5', // Set the same background color in purchase avatars
+    backgroundColor: '#58A4B0', // Teal background for friend avatars
   },
   avatarLabel: {
     fontSize: 12,
     color: '#666',
   },
   purchaseRow: {
-    paddingVertical: 25, // Increase the height of each item
+    paddingVertical: 25,
     paddingHorizontal: 15,
     backgroundColor: '#ffffff',
     borderRadius: 10,
@@ -189,21 +190,24 @@ const styles = StyleSheet.create({
     color: '#999',
     marginTop: 5,
   },
+  purchaseAvatar: {
+    backgroundColor: '#58A4B0', // Teal background for friend avatars
+  },
   descriptionSpacing: {
-    marginTop: 10, // Space between time and description
+    marginTop: 10,
   },
   purchaseDescription: {
-    fontSize: 16, // Larger font size for description
-    color: '#000', // Set description to black
+    fontSize: 16,
+    color: '#000',
   },
   purchaseActions: {
     flexDirection: 'row',
     justifyContent: 'flex-start',
     marginTop: 10,
-    marginLeft: 60, // Move icons slightly to the left
+    marginLeft: 60,
   },
   commentIconWrapper: {
-    marginLeft: 20, // Add space between heart and comment icon
+    marginLeft: 20,
   },
   separator: {
     height: 1,
