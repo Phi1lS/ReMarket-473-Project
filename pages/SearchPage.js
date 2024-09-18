@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, TextInput, FlatList, Text, TouchableOpacity, StyleSheet, Platform, StatusBar } from 'react-native';
+import { View, TextInput, FlatList, Text, TouchableOpacity, StyleSheet, Platform, StatusBar, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 
@@ -29,6 +29,9 @@ export default function SearchPage() {
       if (!recent.includes(searchQuery)) {
         setRecent([searchQuery, ...recent.slice(0, 4)]); // Limit to 5 recent searches
       }
+      
+      // Dismiss the keyboard and blur the input
+      Keyboard.dismiss();
     }
   };
 
