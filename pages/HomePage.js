@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f9f9f9',
-    paddingTop: Platform.OS === 'ios' ? 60 : StatusBar.currentHeight + 15,
+    paddingTop: Platform.OS === 'ios' ? 60 : 0,
   },
   topBarContainer: {
     width: '100%',
