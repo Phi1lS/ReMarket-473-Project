@@ -1,12 +1,14 @@
-import React from 'react';
-import { View, TextInput, Image, StyleSheet, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState } from 'react';
+import { View, TextInput, Image, StyleSheet, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 
 export default function ItemDetailScreen({ route }) {
-  const { item } = route.params; // Get the item data passed via navigation
-  const navigation = useNavigation(); // Use navigation hook
+  const { item } = route.params;
+  const navigation = useNavigation();
+  const [isCommenting, setIsCommenting] = useState(false); // Track if user is typing a comment
+  const [commentText, setCommentText] = useState(''); // Track the comment text
 
   const comments = [
     {
@@ -14,7 +16,7 @@ export default function ItemDetailScreen({ route }) {
       name: 'User1',
       comment: 'This looks awesome! Where did you get it?',
       time: '2 hours ago',
-      profilePic: require('../../assets/avatar.png'), 
+      profilePic: require('../../assets/avatar.png'),
     },
     {
       id: 2,
@@ -31,6 +33,16 @@ export default function ItemDetailScreen({ route }) {
       profilePic: require('../../assets/avatar.png'),
     },
   ];
+
+  // Handle comment submission
+  const handleSubmitComment = () => {
+    if (commentText.trim() !== '') {
+      console.log('Comment submitted:', commentText); // Handle the actual comment submission logic
+      setCommentText(''); // Clear the input field
+      setIsCommenting(false); // Hide the comment input box
+      Keyboard.dismiss(); // Dismiss the keyboard after submission
+    }
+  };
 
   return (
     <KeyboardAvoidingView
@@ -80,16 +92,22 @@ export default function ItemDetailScreen({ route }) {
         ))}
       </ScrollView>
 
-      {/* Comment Box pinned to the bottom */}
-      <View style={styles.commentBoxContainer}>
+      {/* Comment Box appears when user is typing */}
+      <View style={[styles.commentBoxContainer, isCommenting && styles.commentBoxExpanded]}>
         <TextInput
-          style={styles.commentInput}
+          style={[styles.commentInput, isCommenting && styles.commentInputExpanded]}
           placeholder="Write a comment"
           placeholderTextColor="#999"
+          value={commentText}
+          onChangeText={setCommentText}
+          onSubmitEditing={handleSubmitComment}
+          onFocus={() => setIsCommenting(true)} // Show expanded input when typing
         />
-        <TouchableOpacity style={styles.sendButton}>
-          <Ionicons name="send-outline" size={24} color="#fff" />
-        </TouchableOpacity>
+        {isCommenting && (
+          <TouchableOpacity style={styles.sendButton} onPress={handleSubmitComment}>
+            <Ionicons name="send-outline" size={24} color="#fff" />
+          </TouchableOpacity>
+        )}
       </View>
     </KeyboardAvoidingView>
   );
@@ -128,7 +146,7 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   purchaseAvatar: {
-    backgroundColor: '#58A4B0', // Teal background for avatars
+    backgroundColor: '#4CB0E6',
   },
   descriptionSpacing: {
     marginTop: 10,
@@ -160,14 +178,14 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   commentAvatar: {
-    backgroundColor: '#58A4B0', // Teal background for comments avatars
+    backgroundColor: '#4CB0E6',
     marginRight: 10,
   },
   commentDetails: {
     flex: 1,
   },
   commentName: {
-    fontSize: 16, // Larger font size for consistency
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#333',
   },
@@ -185,16 +203,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     paddingHorizontal: 20,
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     backgroundColor: '#f7f7f7',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -1 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 3, // Shadow for Android
+    elevation: 3,
   },
   commentInput: {
     flex: 1,
@@ -208,11 +222,17 @@ const styles = StyleSheet.create({
   },
   sendButton: {
     marginLeft: 10,
-    backgroundColor: '#58A4B0', // Teal send button color
+    backgroundColor: '#4CB0E6',
     borderRadius: 20,
     width: 40,
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  commentInputExpanded: {
+    backgroundColor: '#f0f0f0',
+  },
+  commentBoxExpanded: {
+    paddingBottom: Platform.OS === 'ios' ? 20 : 10,
   },
 });

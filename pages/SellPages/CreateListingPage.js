@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Image, ScrollView, StatusBar, Platform } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, Image, ScrollView, StatusBar, Platform, Alert, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -13,7 +13,7 @@ export default function CreateListingPage() {
   const [image, setImage] = useState(null);
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState(null); // To store the selected category
+  const [selectedCategory, setSelectedCategory] = useState(null);
   const navigation = useNavigation();
 
   // Function to open image picker
@@ -38,72 +38,87 @@ export default function CreateListingPage() {
 
   // Function to handle submission of the listing
   const handleCreateListing = () => {
-    // Log the created listing
-    console.log({ image, description, price, selectedCategory });
+    if (!description || !price || !selectedCategory || !image) {
+      Alert.alert('Error', 'Please fill out all fields and upload an image.');
+      return;
+    }
 
-    // Navigate back to the Selling Page
-    navigation.navigate('SellingPage');
+    // Logic for creating the listing
+    const newListing = {
+      image,
+      description,
+      price,
+      selectedCategory,
+    };
+
+    console.log('Listing created:', newListing);
+
+    // Navigate back to the SellingPage after the listing is created
+    navigation.navigate('Selling');
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.scrollContainer}>
-      <View style={styles.container}>
-        <Text style={styles.header}>Create New Listing</Text>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <View style={styles.container}>
+          <Text style={styles.header}>Create New Listing</Text>
 
-        {/* Upload Image */}
-        <TouchableOpacity onPress={pickImage} style={styles.imagePicker}>
-          {image ? (
-            <Image source={{ uri: image }} style={styles.image} />
-          ) : (
-            <View style={styles.imagePlaceholderContainer}>
-              <Ionicons name="camera-outline" size={32} color="#888" />
-              <Text style={styles.imagePlaceholder}>Upload Image</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+          {/* Upload Image */}
+          <TouchableOpacity onPress={pickImage} style={styles.imagePicker}>
+            {image ? (
+              <Image source={{ uri: image }} style={styles.image} />
+            ) : (
+              <View style={styles.imagePlaceholderContainer}>
+                <Ionicons name="camera-outline" size={32} color="#888" />
+                <Text style={styles.imagePlaceholder}>Upload Image</Text>
+              </View>
+            )}
+          </TouchableOpacity>
 
-        {/* Item Description */}
-        <TextInput
-          style={styles.input}
-          placeholder="Item Description"
-          value={description}
-          onChangeText={setDescription}
-          placeholderTextColor="#888"
-        />
+          {/* Item Description */}
+          <TextInput
+            style={styles.input}
+            placeholder="Item Description"
+            value={description}
+            onChangeText={setDescription}
+            placeholderTextColor="#888"
+          />
 
-        {/* Item Price */}
-        <TextInput
-          style={styles.input}
-          placeholder="Price"
-          value={price}
-          onChangeText={setPrice}
-          keyboardType="numeric"
-          placeholderTextColor="#888"
-        />
+          {/* Item Price */}
+          <TextInput
+            style={styles.input}
+            placeholder="Price"
+            value={`$${price}`}  // Prepend the dollar sign
+            onChangeText={text => setPrice(text.replace(/[^0-9.]/g, ''))}  // Allow only numbers and decimal points
+            keyboardType="numeric"
+            placeholderTextColor="#888"
+          />
 
-        {/* Category Selection */}
-        <Text style={styles.categoryHeader}>Select a Category</Text>
-        <View style={styles.categoryContainer}>
-          {categories.map((category) => (
-            <TouchableOpacity
-              key={category}
-              style={[
-                styles.categoryButton,
-                selectedCategory === category && styles.categoryButtonSelected, // Highlight selected category
-              ]}
-              onPress={() => setSelectedCategory(category)} // Update selected category
-            >
-              <Text style={styles.categoryText}>{category}</Text>
-            </TouchableOpacity>
-          ))}
+
+          {/* Category Selection */}
+          <Text style={styles.categoryHeader}>Select a Category</Text>
+          <View style={styles.categoryContainer}>
+            {categories.map((category) => (
+              <TouchableOpacity
+                key={category}
+                style={[
+                  styles.categoryButton,
+                  selectedCategory === category && styles.categoryButtonSelected,
+                ]}
+                onPress={() => setSelectedCategory(category)}
+              >
+                <Text style={styles.categoryText}>{category}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Create Listing Button */}
+          <TouchableOpacity style={styles.createButton} onPress={handleCreateListing}>
+            <Text style={styles.createButtonText}>Create Listing</Text>
+          </TouchableOpacity>
         </View>
-
-        {/* Create Listing Button */}
-        <TouchableOpacity style={styles.createButton} onPress={handleCreateListing}>
-          <Text style={styles.createButtonText}>Create Listing</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </TouchableWithoutFeedback>
   );
 }
 
@@ -171,7 +186,7 @@ const styles = StyleSheet.create({
   },
   categoryButton: {
     width: '48%',
-    backgroundColor: '#4CB0E6', // Light blue for category selection
+    backgroundColor: '#0070BA',
     padding: 12,
     borderRadius: 12,
     marginBottom: 10,
@@ -179,7 +194,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   categoryButtonSelected: {
-    backgroundColor: '#2C81A2', // Darker blue for selected category
+    backgroundColor: '#005c99',
   },
   categoryText: {
     color: '#fff',
@@ -187,7 +202,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   createButton: {
-    backgroundColor: '#58A4B0', // Teal for the create listing button
+    backgroundColor: '#0070BA',
     padding: 15,
     borderRadius: 15,
     alignItems: 'center',

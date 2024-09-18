@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Platform, StatusBar, View } from 'react-native'; // Ensure StatusBar is imported from 'react-native'
+import { StyleSheet, Platform, StatusBar, View } from 'react-native';
 import { Provider as PaperProvider } from 'react-native-paper';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -28,7 +28,7 @@ function HomeStack() {
     <Stack.Navigator
       screenOptions={{
         headerStyle: { backgroundColor: '#ffffff' },
-        headerTintColor: '#58A4B0',
+        headerTintColor: '#4CB0E6',  // Changed from teal to blue
         headerTitleStyle: { color: '#000' },
         headerTitleAlign: 'center',
       }}
@@ -63,7 +63,7 @@ function ShopStack() {
     <Stack.Navigator
       screenOptions={{
         headerStyle: { backgroundColor: '#ffffff' },
-        headerTintColor: '#58A4B0',
+        headerTintColor: '#4CB0E6',  // Changed from teal to blue
         headerTitleStyle: { color: '#000' },
         headerTitleAlign: 'center',
       }}
@@ -81,7 +81,7 @@ function SellingStack() {
     <Stack.Navigator
       screenOptions={{
         headerStyle: { backgroundColor: '#ffffff' },
-        headerTintColor: '#58A4B0',
+        headerTintColor: '#4CB0E6',  // Changed from teal to blue
         headerTitleStyle: { color: '#000' },
         headerTitleAlign: 'center',
       }}
@@ -115,7 +115,7 @@ export default function App() {
                 }
                 return <Ionicons name={iconName} size={focused ? size + 8 : size} color={color} />;
               },
-              tabBarActiveTintColor: '#58A4B0',
+              tabBarActiveTintColor: '#4CB0E6',  // Changed from teal to blue
               tabBarInactiveTintColor: 'gray',
               tabBarStyle: {
                 height: Platform.OS === 'ios' ? 90 : 70,

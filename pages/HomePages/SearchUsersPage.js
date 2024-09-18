@@ -12,6 +12,7 @@ const users = [
 
 export default function SearchUsersPage() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [isSearching, setIsSearching] = useState(false); // Track if the user is searching
 
   // Filter users based on the search term
   const filteredUsers = users.filter(user =>
@@ -22,12 +23,14 @@ export default function SearchUsersPage() {
     <View style={styles.container}>
       {/* Search Bar */}
       <TextInput
-        style={styles.searchBar}
+        style={[styles.searchBar, isSearching && styles.searchBarActive]} // Apply active style when searching
         placeholder="Search for users"
         value={searchTerm}
         onChangeText={setSearchTerm}
+        onFocus={() => setIsSearching(true)}  // Focus event to show the expanded search bar
+        onBlur={() => setIsSearching(false)}  // Blur event to collapse the search bar
       />
-      
+
       {/* List of Filtered Users */}
       <FlatList
         data={filteredUsers}
@@ -59,6 +62,10 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     fontSize: 16,
   },
+  searchBarActive: {
+    borderColor: '#4CB0E6', // Blue border when the user is actively searching
+    backgroundColor: '#f0f0f0', // Light grey background during search
+  },
   userItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -71,7 +78,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   avatar: {
-    backgroundColor: '#58A4B0', // Same teal color as on the home screen
+    backgroundColor: '#4CB0E6', // Blue background for avatar
   },
   userName: {
     marginLeft: 15,

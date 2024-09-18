@@ -62,12 +62,13 @@ export default function ShopPage() {
           placeholder="Search for items"
           value={searchQuery}
           onChangeText={handleSearch}
+          placeholderTextColor="#888"
         />
         <TouchableOpacity
           style={styles.cartIcon}
           onPress={() => navigation.navigate('CartPage', { cart: sampleItems })}
         >
-          <Ionicons name="cart-outline" size={28} color="#000" />
+          <Ionicons name="cart-outline" size={28} color="#0070BA" />
         </TouchableOpacity>
       </View>
 
@@ -113,7 +114,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 40,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: '#0070BA', // Updated border color to ReMarket blue
     borderRadius: 20,
     paddingLeft: 15,
     backgroundColor: '#f9f9f9',
@@ -129,7 +130,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 10,
-    color: '#333',
+    color: '#0070BA', // ReMarket blue for section titles
   },
   itemContainer: {
     width: 120,
@@ -140,7 +141,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginRight: 10,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: '#0070BA', // ReMarket blue for item borders
   },
   itemName: {
     fontSize: 14,
@@ -151,7 +152,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginVertical: 20,
-    color: '#333',
+    color: '#0070BA', // ReMarket blue for category title
   },
   categoryContainer: {
     flexDirection: 'row',
@@ -160,7 +161,7 @@ const styles = StyleSheet.create({
   },
   categoryButton: {
     width: '30%',
-    backgroundColor: '#58A4B0',
+    backgroundColor: '#0070BA', // Updated background color to ReMarket blue
     padding: 10,
     borderRadius: 10,
     marginBottom: 10,

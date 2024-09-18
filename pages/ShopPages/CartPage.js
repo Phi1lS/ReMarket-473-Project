@@ -59,7 +59,7 @@ export default function CartPage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#fff',
     padding: 20,
   },
   cartList: {
@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
   cartItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: '#f0f0f0', // Light background for cart items
     borderRadius: 10,
     padding: 15,
     marginBottom: 15,
@@ -118,13 +118,13 @@ const styles = StyleSheet.create({
   subtotalAmount: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#58A4B0',
+    color: '#0070BA', // ReMarket blue for the subtotal amount
   },
   checkoutFAB: {
     position: 'absolute',
     margin: 16,
     right: 0,
     bottom: 0,
-    backgroundColor: '#58A4B0',
+    backgroundColor: '#0070BA', // ReMarket blue for the checkout button
   },
 });

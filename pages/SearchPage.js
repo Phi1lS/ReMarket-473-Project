@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9f9f9',
   },
   searchButton: {
-    backgroundColor: '#58A4B0',
+    backgroundColor: '#0070BA', // ReMarket blue for the search button
     borderRadius: 20,
     padding: 10,
     marginLeft: 10,

@@ -44,7 +44,7 @@ export default function SellingPage() {
 
       {/* Floating button to create a new listing */}
       <TouchableOpacity style={styles.floatingButton} onPress={() => navigation.navigate('CreateListingPage')}>
-        <Ionicons name="add-circle-outline" size={60} color="#58A4B0" />
+        <Ionicons name="add-circle-outline" size={60} color="#0070BA" />
       </TouchableOpacity>
     </View>
   );
@@ -69,12 +69,12 @@ const styles = StyleSheet.create({
   },
   listingContainer: {
     flexDirection: 'row',
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#f1f4f8', // Updated background color
     borderRadius: 10,
     marginBottom: 15,
     padding: 10,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: '#0070BA', // Updated border color to match theme
     elevation: 2,
   },
   listingImage: {
@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
   listingName: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#0070BA', // Updated font color for the listing name
   },
   listingDescription: {
     fontSize: 14,
@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
   listingPrice: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#58A4B0',
+    color: '#0070BA', // Updated price color to match theme
   },
   floatingButton: {
     position: 'absolute',

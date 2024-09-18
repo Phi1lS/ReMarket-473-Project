@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
   itemPrice: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#58A4B0',
+    color: '#4CB0E6', // Updated to the new blue shade
     marginBottom: 15,
   },
   itemDescription: {
@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
     borderColor: '#ddd',
   },
   avatar: {
-    backgroundColor: '#58A4B0', // Teal background for avatar
+    backgroundColor: '#4CB0E6', // Updated to the blue theme
   },
   sellerDetails: {
     marginLeft: 10,
@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#58A4B0',
+    backgroundColor: '#4CB0E6', // Updated to blue shade
     padding: 15,
     borderRadius: 10,
     marginTop: 30,
@@ -136,6 +136,6 @@ const styles = StyleSheet.create({
   },
   itemCategory: {
     fontSize: 16,
-    color: '#58A4B0',
+    color: '#4CB0E6', // Updated to blue theme
   },
 });

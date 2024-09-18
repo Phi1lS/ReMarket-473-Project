@@ -70,7 +70,7 @@ export default function HomePage() {
                   <Avatar.Image
                     size={50}
                     source={item.profilePic}
-                    style={styles.avatar} // Teal background for friend avatars
+                    style={styles.avatar} // Blue background for friend avatars
                   />
                   <Text style={styles.avatarLabel}>{item.name}</Text>
                 </View>
@@ -92,7 +92,7 @@ export default function HomePage() {
                 <Avatar.Image 
                   size={50} 
                   source={item.profilePic} 
-                  style={styles.purchaseAvatar} // Teal background for avatars in purchase list
+                  style={styles.purchaseAvatar} // Blue background for avatars in purchase list
                 />
                 <View style={styles.purchaseDetails}>
                   <Text style={styles.purchaseFriend}>{item.friend}</Text>
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#58A4B0',
+    backgroundColor: '#4CB0E6', // Changed to blue
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
   },
   avatar: {
     marginBottom: 5,
-    backgroundColor: '#58A4B0', // Teal background for friend avatars
+    backgroundColor: '#4CB0E6', // Changed to blue
   },
   avatarLabel: {
     fontSize: 12,
@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   purchaseAvatar: {
-    backgroundColor: '#58A4B0', // Teal background for friend avatars
+    backgroundColor: '#4CB0E6', // Changed to blue
   },
   descriptionSpacing: {
     marginTop: 10,
