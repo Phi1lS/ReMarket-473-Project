@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, TextInput, FlatList, TouchableOpacity, StyleSheet, Text } from 'react-native';
 import { Avatar } from 'react-native-paper';
+import { useNavigation } from '@react-navigation/native'; // Import navigation hook
 
 // Mock data for users
 const users = [
@@ -11,6 +12,7 @@ const users = [
 ];
 
 export default function SearchUsersPage() {
+  const navigation = useNavigation(); // Initialize navigation hook
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearching, setIsSearching] = useState(false); // Track if the user is searching
 
@@ -36,7 +38,10 @@ export default function SearchUsersPage() {
         data={filteredUsers}
         keyExtractor={item => item.id.toString()}
         renderItem={({ item }) => (
-          <TouchableOpacity style={styles.userItem}>
+          <TouchableOpacity 
+            style={styles.userItem}
+            onPress={() => navigation.navigate('UserProfilePage', { user: item })} // Navigate to UserProfilePage
+          >
             <Avatar.Image size={50} source={item.profilePic} style={styles.avatar} />
             <Text style={styles.userName}>{item.name}</Text>
           </TouchableOpacity>

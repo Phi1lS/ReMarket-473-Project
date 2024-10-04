@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Platform, StatusBar, View } from 'react-native';
+import { StyleSheet, Platform, StatusBar, View, TouchableOpacity } from 'react-native';
 import { Provider as PaperProvider } from 'react-native-paper';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -17,6 +17,9 @@ import ItemPage from './pages/ItemPage';
 import CreateListingPage from './pages/SellPages/CreateListingPage';
 import SearchUsersPage from './pages/HomePages/SearchUsersPage';
 import CartPage from './pages/ShopPages/CartPage';
+import SettingsPage from './pages/ProfilePages/SettingsPage'
+import NotificationsPage from './pages/ProfilePages/NotificationsPage';
+import UserProfilePage from './pages/UserProfilePage'
 
 // Create Bottom Tab Navigator
 const Tab = createBottomTabNavigator();
@@ -28,15 +31,15 @@ function HomeStack() {
     <Stack.Navigator
       screenOptions={{
         headerStyle: { backgroundColor: '#ffffff' },
-        headerTintColor: '#4CB0E6',  // Changed from teal to blue
+        headerTintColor: '#4CB0E6',
         headerTitleStyle: { color: '#000' },
         headerTitleAlign: 'center',
       }}
     >
       <Stack.Screen 
-        name="Home" 
+        name="HomeScreen" 
         component={HomePage} 
-        options={{ headerShown: false }} 
+        options={{ title: 'Home', headerShown: false }} 
       />
       <Stack.Screen 
         name="ItemDetail" 
@@ -49,9 +52,14 @@ function HomeStack() {
         options={{ title: 'Item Details' }} 
       />
       <Stack.Screen 
-        name="SearchUsersPage" 
+        name="SearchUsers" 
         component={SearchUsersPage} 
         options={{ title: 'Search Users' }} 
+      />
+      <Stack.Screen
+        name="UserProfilePage"
+        component={UserProfilePage} // Use the correct component name
+        options={{ title: 'User Profile' }} // Title for user profile page
       />
     </Stack.Navigator>
   );
@@ -63,14 +71,26 @@ function ShopStack() {
     <Stack.Navigator
       screenOptions={{
         headerStyle: { backgroundColor: '#ffffff' },
-        headerTintColor: '#4CB0E6',  // Changed from teal to blue
+        headerTintColor: '#4CB0E6',
         headerTitleStyle: { color: '#000' },
         headerTitleAlign: 'center',
       }}
     >
-      <Stack.Screen name="Shop" component={ShopPage} options={{ headerShown: false }} />
-      <Stack.Screen name="ItemPage" component={ItemPage} options={{ title: 'Item Details' }} />
-      <Stack.Screen name="CartPage" component={CartPage} options={{title: 'Your Cart' }} />
+      <Stack.Screen 
+        name="ShopScreen" 
+        component={ShopPage} 
+        options={{ title: 'Shop', headerShown: false }} 
+      />
+      <Stack.Screen 
+        name="ItemPage" 
+        component={ItemPage} 
+        options={{ title: 'Item Details' }} 
+      />
+      <Stack.Screen 
+        name="CartPage" 
+        component={CartPage} 
+        options={{ title: 'Your Cart' }} 
+      />
     </Stack.Navigator>
   );
 }
@@ -81,14 +101,81 @@ function SellingStack() {
     <Stack.Navigator
       screenOptions={{
         headerStyle: { backgroundColor: '#ffffff' },
-        headerTintColor: '#4CB0E6',  // Changed from teal to blue
+        headerTintColor: '#4CB0E6',
         headerTitleStyle: { color: '#000' },
         headerTitleAlign: 'center',
       }}
     >
-      <Stack.Screen name="Selling" component={SellingPage} options={{ headerShown: false }} />
-      <Stack.Screen name="CreateListingPage" component={CreateListingPage} options={{ title: 'Create Listing' }} />
-      <Stack.Screen name="ItemPage" component={ItemPage} options={{ title: 'Item Details' }} />
+      <Stack.Screen 
+        name="SellingScreen" 
+        component={SellingPage} 
+        options={{ title: 'Selling', headerShown: false }} 
+      />
+      <Stack.Screen 
+        name="CreateListingPage" 
+        component={CreateListingPage} 
+        options={{ title: 'Create Listing' }} 
+      />
+      <Stack.Screen 
+        name="ItemPage" 
+        component={ItemPage} 
+        options={{ title: 'Item Details' }} 
+      />
+    </Stack.Navigator>
+  );
+}
+
+// Create a separate Search Stack
+function SearchStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: '#ffffff' },
+        headerTintColor: '#4CB0E6',
+        headerTitleStyle: { color: '#000' },
+        headerTitleAlign: 'center',
+      }}
+    >
+      <Stack.Screen 
+        name="SearchScreen" 
+        component={SearchPage} 
+        options={{ title: 'Search', headerShown: false }} 
+      />
+      <Stack.Screen 
+        name="ItemPage" 
+        component={ItemPage} 
+        options={{ title: 'Item Details' }} 
+      />
+    </Stack.Navigator>
+  );
+}
+
+// Profile Stack for ProfilePage, SettingsPage, and NotificationsPage navigation
+function ProfileStack({ navigation }) {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: '#ffffff' },
+        headerTintColor: '#4CB0E6',
+        headerTitleStyle: { color: '#000' },
+        headerTitleAlign: 'center',
+      }}
+    >
+      <Stack.Screen 
+        name="ProfileScreen" 
+        component={ProfilePage} 
+        options={{ title: 'My Profile', headerShown: false }} 
+      />
+      <Stack.Screen 
+        name="Settings" 
+        component={SettingsPage} 
+        options={{ title: 'Settings' }} 
+      />
+      <Stack.Screen 
+        name="Notifications" 
+        component={NotificationsPage} 
+        options={{ title: 'Notifications' }} 
+      />
     </Stack.Navigator>
   );
 }
@@ -102,40 +189,35 @@ export default function App() {
             screenOptions={({ route }) => ({
               tabBarIcon: ({ color, size, focused }) => {
                 let iconName;
-                if (route.name === 'Home') {
+                if (route.name === 'HomeTab') {
                   iconName = 'home';
-                } else if (route.name === 'Shop') {
+                } else if (route.name === 'ShopTab') {
                   iconName = 'cart';
-                } else if (route.name === 'Search') {
+                } else if (route.name === 'SearchTab') {
                   iconName = 'search';
-                } else if (route.name === 'Selling') {
+                } else if (route.name === 'SellingTab') {
                   iconName = 'pricetag';
-                } else if (route.name === 'My Profile') {
+                } else if (route.name === 'ProfileTab') {
                   iconName = 'person';
                 }
                 return <Ionicons name={iconName} size={focused ? size + 8 : size} color={color} />;
               },
-              tabBarActiveTintColor: '#4CB0E6',  // Changed from teal to blue
+              tabBarActiveTintColor: '#4CB0E6',  
               tabBarInactiveTintColor: 'gray',
               tabBarStyle: {
                 height: Platform.OS === 'ios' ? 90 : 70,
                 paddingBottom: Platform.OS === 'ios' ? 30 : 15,
                 paddingTop: 10,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: -2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 6,
-                elevation: 5,
               },
               headerShown: false,
               tabBarAnimationEnabled: true,
             })}
           >
-            <Tab.Screen name="Home" component={HomeStack} />
-            <Tab.Screen name="Shop" component={ShopStack} />
-            <Tab.Screen name="Search" component={SearchPage} />
-            <Tab.Screen name="Selling" component={SellingStack} />
-            <Tab.Screen name="My Profile" component={ProfilePage} />
+            <Tab.Screen name="HomeTab" component={HomeStack} options={{ title: 'Home' }} />
+            <Tab.Screen name="ShopTab" component={ShopStack} options={{ title: 'Shop' }} />
+            <Tab.Screen name="SearchTab" component={SearchStack} options={{ title: 'Search' }} />
+            <Tab.Screen name="SellingTab" component={SellingStack} options={{ title: 'Selling' }} />
+            <Tab.Screen name="ProfileTab" component={ProfileStack} options={{ title: 'My Profile' }} />
           </Tab.Navigator>
         </View>
       </NavigationContainer>
@@ -147,6 +229,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0, // Ensure padding is only for Android
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0, 
   },
 });

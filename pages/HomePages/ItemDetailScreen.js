@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, TextInput, Image, StyleSheet, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from 'react-native-vector-icons'; // Correct import for icons
 import { Avatar } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 
@@ -53,9 +53,14 @@ export default function ItemDetailScreen({ route }) {
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         {/* Top Section with Profile Picture, Name, and Description */}
         <View style={styles.purchaseTop}>
-          <Avatar.Image size={50} source={item.profilePic} style={styles.purchaseAvatar} />
+          {/* Navigate to UserProfilePage when user presses the avatar or name */}
+          <TouchableOpacity onPress={() => navigation.navigate('UserProfilePage', { user: item })}>
+            <Avatar.Image size={50} source={item.profilePic} style={styles.purchaseAvatar} />
+          </TouchableOpacity>
           <View style={styles.purchaseDetails}>
-            <Text style={styles.purchaseFriend}>{item.friend}</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('UserProfilePage', { user: item })}>
+              <Text style={styles.purchaseFriend}>{item.friend}</Text>
+            </TouchableOpacity>
             <Text style={styles.purchaseText}>purchased {item.item}</Text>
             <Text style={styles.purchaseTime}>{item.time}</Text>
             <View style={styles.descriptionSpacing}>
@@ -82,9 +87,13 @@ export default function ItemDetailScreen({ route }) {
         {/* Comments Section */}
         {comments.map((comment) => (
           <View key={comment.id} style={styles.commentRow}>
-            <Avatar.Image size={40} source={comment.profilePic} style={styles.commentAvatar} />
+            <TouchableOpacity onPress={() => navigation.navigate('UserProfilePage', { user: comment })}>
+              <Avatar.Image size={40} source={comment.profilePic} style={styles.commentAvatar} />
+            </TouchableOpacity>
             <View style={styles.commentDetails}>
-              <Text style={styles.commentName}>{comment.name}</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('UserProfilePage', { user: comment })}>
+                <Text style={styles.commentName}>{comment.name}</Text>
+              </TouchableOpacity>
               <Text style={styles.commentText}>{comment.comment}</Text>
               <Text style={styles.commentTime}>{comment.time}</Text>
             </View>

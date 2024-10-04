@@ -52,31 +52,28 @@ export default function HomePage() {
       <View style={styles.topBarContainer}>
         <FlatList
           horizontal
-          data={[{ id: 'search' }, ...friends]} 
+          data={friends} 
           keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => {
-            if (item.id === 'search') {
-              return (
-                <TouchableOpacity 
-                  style={styles.searchBubble}
-                  onPress={() => navigation.navigate('SearchUsersPage')} // Navigate to SearchUsersPage
-                >
-                  <Ionicons name="search" size={24} color="#ffffff" />
-                </TouchableOpacity>
-              );
-            } else {
-              return (
-                <View style={styles.avatarWrapper}>
-                  <Avatar.Image
-                    size={50}
-                    source={item.profilePic}
-                    style={styles.avatar} // Blue background for friend avatars
-                  />
-                  <Text style={styles.avatarLabel}>{item.name}</Text>
-                </View>
-              );
-            }
-          }}
+          ListHeaderComponent={() => (
+            <TouchableOpacity 
+              style={styles.searchBubble}
+              onPress={() => navigation.navigate('SearchUsers')} // Navigate to SearchUsersPage
+            >
+              <Ionicons name="search" size={24} color="#ffffff" />
+            </TouchableOpacity>
+          )}
+          renderItem={({ item }) => (
+            <View style={styles.avatarWrapper}>
+              <TouchableOpacity onPress={() => navigation.navigate('UserProfilePage', { user: item })}>
+                <Avatar.Image
+                  size={50}
+                  source={item.profilePic}
+                  style={styles.avatar} // Blue background for friend avatars
+                />
+              </TouchableOpacity>
+              <Text style={styles.avatarLabel}>{item.name}</Text>
+            </View>
+          )}
           showsHorizontalScrollIndicator={false}
         />
       </View>

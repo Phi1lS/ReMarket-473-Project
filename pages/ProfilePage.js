@@ -5,7 +5,7 @@ import { Avatar } from 'react-native-paper';
 
 const avatarPlaceholder = require('../assets/avatar.png');
 
-export default function ProfilePage() {
+export default function ProfilePage({ navigation }) {
   const [selectedTab, setSelectedTab] = useState('wallet'); // Tabs between 'wallet' and 'purchases'
   const [isPayPalLinked] = useState(true); // Set to true for demo purposes
 
@@ -18,6 +18,17 @@ export default function ProfilePage() {
     <ScrollView contentContainerStyle={styles.container}>
       {/* Profile Header */}
       <View style={styles.header}>
+        {/* Notification Bell and Settings Cog */}
+        <View style={styles.iconContainer}>
+          <TouchableOpacity onPress={() => navigation.navigate('Notifications')}>
+            <Ionicons name="notifications-outline" size={28} color="#4CB0E6" style={styles.icon} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('Settings')}>
+            <Ionicons name="settings-outline" size={28} color="#4CB0E6" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Avatar and User Info */}
         <Avatar.Image size={90} source={avatarPlaceholder} style={styles.avatar} />
         <Text style={styles.name}>User Name</Text>
         <Text style={styles.username}>@User-Name-7</Text>
@@ -42,7 +53,6 @@ export default function ProfilePage() {
       {/* Dynamic Content Based on Tab */}
       {selectedTab === 'wallet' ? (
         <View style={styles.walletSection}>
-          {/* Linked PayPal Account */}
           <Text style={styles.linkedPayPalLabel}>PayPal Status</Text>
           <View style={styles.linkedPayPalContainer}>
             <Ionicons name="logo-paypal" size={24} color="#0070BA" />
@@ -65,12 +75,13 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     padding: 20,
-    paddingTop: Platform.OS === 'ios' ? 60 : 20,
+    paddingTop: Platform.OS === 'ios' ? 80 : 20,
     backgroundColor: '#f5f5f5',
   },
   header: {
     alignItems: 'center',
     marginBottom: 20,
+    position: 'relative',
   },
   name: {
     fontSize: 24,
@@ -82,7 +93,16 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   avatar: {
-    backgroundColor: '#4CB0E6', // Blue color for the avatar background
+    backgroundColor: '#4CB0E6',
+  },
+  iconContainer: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    flexDirection: 'row',
+  },
+  icon: {
+    marginRight: 15,
   },
   tabContainer: {
     flexDirection: 'row',
@@ -97,7 +117,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   activeTab: {
-    backgroundColor: '#4CB0E6', // Primary color from logo
+    backgroundColor: '#4CB0E6',
     borderRadius: 15,
   },
   tabText: {

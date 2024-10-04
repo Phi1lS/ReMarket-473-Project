@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, FlatList, StyleSheet, TouchableOpacity, TextInput, ScrollView, Text, Platform, StatusBar } from 'react-native';
+import { View, FlatList, StyleSheet, TouchableOpacity, TextInput, ScrollView, Text, Image, Platform, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 
@@ -56,6 +56,13 @@ export default function ShopPage() {
 
   return (
     <View style={styles.container}>
+      {/* Add Logo at the top */}
+      <Image 
+        source={require('../assets/ReMarketlogo.png')} 
+        style={styles.logo} 
+        resizeMode="contain"
+      />
+
       <View style={styles.topBar}>
         <TextInput
           style={styles.searchBar}
@@ -101,8 +108,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-    paddingTop: Platform.OS === 'ios' ? 60 : StatusBar.currentHeight + 15,
+    paddingTop: Platform.OS === 'ios' ? 45 : StatusBar.currentHeight + 15,
     paddingHorizontal: 10,
+  },
+  logo: {
+    width: '100%',
+    height: 60,
+    marginBottom: 0,
+    alignSelf: 'center',
   },
   topBar: {
     flexDirection: 'row',
@@ -114,7 +127,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 40,
     borderWidth: 1,
-    borderColor: '#0070BA', // Updated border color to ReMarket blue
+    borderColor: '#0070BA',
     borderRadius: 20,
     paddingLeft: 15,
     backgroundColor: '#f9f9f9',
@@ -130,7 +143,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 10,
-    color: '#0070BA', // ReMarket blue for section titles
+    color: '#0070BA',
   },
   itemContainer: {
     width: 120,
@@ -141,7 +154,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginRight: 10,
     borderWidth: 1,
-    borderColor: '#0070BA', // ReMarket blue for item borders
+    borderColor: '#0070BA',
   },
   itemName: {
     fontSize: 14,
@@ -152,7 +165,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginVertical: 20,
-    color: '#0070BA', // ReMarket blue for category title
+    color: '#0070BA',
   },
   categoryContainer: {
     flexDirection: 'row',
@@ -161,7 +174,7 @@ const styles = StyleSheet.create({
   },
   categoryButton: {
     width: '30%',
-    backgroundColor: '#0070BA', // Updated background color to ReMarket blue
+    backgroundColor: '#0070BA',
     padding: 10,
     borderRadius: 10,
     marginBottom: 10,
