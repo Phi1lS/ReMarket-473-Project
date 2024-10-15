@@ -40,6 +40,7 @@ export default function CreateAccountScreen({ navigation }) {
             firstName: firstName,
             lastName: lastName,
             email: email,
+            password: password,
         });
 
         Alert.alert('Success', 'Account has been craeted successfully'); // Success message
