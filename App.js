@@ -7,6 +7,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 
 // Import screen components
+import CreateAccountScreen from './pages/CreateAccount'; 
 import HomePage from './pages/HomePage';
 import ShopPage from './pages/ShopPage';
 import SearchPage from './pages/SearchPage';
@@ -24,6 +25,66 @@ import UserProfilePage from './pages/UserProfilePage'
 // Create Bottom Tab Navigator
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
+
+function AuthStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: '#ffffff' },
+        headerTintColor: '#4CB0E6',
+        headerTitleStyle: { color: '#000' },
+        headerTitleAlign: 'center',
+      }}
+    >
+      <Stack.Screen
+        name="CreateAccountScreen"
+        component={CreateAccountScreen}
+        options={{ title: 'Create Account', headerShown: false }}
+      />
+      {/* Add LoginScreen or other auth screens if necessary */}
+    </Stack.Navigator>
+  );
+}
+
+function MainTabNavigator() {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        tabBarIcon: ({ color, size, focused }) => {
+          let iconName;
+          if (route.name === 'HomeTab') {
+            iconName = 'home';
+          } else if (route.name === 'ShopTab') {
+            iconName = 'cart';
+          } else if (route.name === 'SearchTab') {
+            iconName = 'search';
+          } else if (route.name === 'SellingTab') {
+            iconName = 'pricetag';
+          } else if (route.name === 'ProfileTab') {
+            iconName = 'person';
+          }
+          return <Ionicons name={iconName} size={focused ? size + 8 : size} color={color} />;
+        },
+        tabBarActiveTintColor: '#4CB0E6',
+        tabBarInactiveTintColor: 'gray',
+        tabBarStyle: {
+          height: Platform.OS === 'ios' ? 90 : 70,
+          paddingBottom: Platform.OS === 'ios' ? 30 : 15,
+          paddingTop: 10,
+        },
+        headerShown: false,
+        tabBarAnimationEnabled: true,
+      })}
+    >
+      <Tab.Screen name="HomeTab" component={HomeStack} options={{ title: 'Home' }} />
+      <Tab.Screen name="ShopTab" component={ShopStack} options={{ title: 'Shop' }} />
+      <Tab.Screen name="SearchTab" component={SearchStack} options={{ title: 'Search' }} />
+      <Tab.Screen name="SellingTab" component={SellingStack} options={{ title: 'Selling' }} />
+      <Tab.Screen name="ProfileTab" component={ProfileStack} options={{ title: 'My Profile' }} />
+    </Tab.Navigator>
+  );
+}
+
 
 // Home Stack for HomePage and ItemDetailScreen navigation
 function HomeStack() {
@@ -185,45 +246,27 @@ export default function App() {
     <PaperProvider>
       <NavigationContainer>
         <View style={styles.container}>
-          <Tab.Navigator
-            screenOptions={({ route }) => ({
-              tabBarIcon: ({ color, size, focused }) => {
-                let iconName;
-                if (route.name === 'HomeTab') {
-                  iconName = 'home';
-                } else if (route.name === 'ShopTab') {
-                  iconName = 'cart';
-                } else if (route.name === 'SearchTab') {
-                  iconName = 'search';
-                } else if (route.name === 'SellingTab') {
-                  iconName = 'pricetag';
-                } else if (route.name === 'ProfileTab') {
-                  iconName = 'person';
-                }
-                return <Ionicons name={iconName} size={focused ? size + 8 : size} color={color} />;
-              },
-              tabBarActiveTintColor: '#4CB0E6',  
-              tabBarInactiveTintColor: 'gray',
-              tabBarStyle: {
-                height: Platform.OS === 'ios' ? 90 : 70,
-                paddingBottom: Platform.OS === 'ios' ? 30 : 15,
-                paddingTop: 10,
-              },
-              headerShown: false,
-              tabBarAnimationEnabled: true,
-            })}
-          >
-            <Tab.Screen name="HomeTab" component={HomeStack} options={{ title: 'Home' }} />
-            <Tab.Screen name="ShopTab" component={ShopStack} options={{ title: 'Shop' }} />
-            <Tab.Screen name="SearchTab" component={SearchStack} options={{ title: 'Search' }} />
-            <Tab.Screen name="SellingTab" component={SellingStack} options={{ title: 'Selling' }} />
-            <Tab.Screen name="ProfileTab" component={ProfileStack} options={{ title: 'My Profile' }} />
-          </Tab.Navigator>
+          <Stack.Navigator initialRouteName="Auth">
+            {/* Authentication Flow */}
+            <Stack.Screen 
+              name="Auth" 
+              component={AuthStack} 
+              options={{ headerShown: false }} 
+            />
+            
+            {/* Main App Tab Navigator */}
+            <Stack.Screen 
+              name="MainApp" 
+              component={MainTabNavigator} 
+              options={{ headerShown: false }} 
+            />
+          </Stack.Navigator>
         </View>
       </NavigationContainer>
     </PaperProvider>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
