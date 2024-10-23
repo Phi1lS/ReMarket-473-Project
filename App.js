@@ -2,12 +2,16 @@ import React from 'react';
 import { StyleSheet, Platform, StatusBar, View, TouchableOpacity } from 'react-native';
 import { Provider as PaperProvider } from 'react-native-paper';
 import { NavigationContainer } from '@react-navigation/native';
+import { UserProvider } from './UserContext';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack'; 
 import { Ionicons } from '@expo/vector-icons';
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { auth } from './firebaseConfig';
 
 // Import screen components
 import CreateAccountScreen from './pages/CreateAccount'; 
+import LoginScreen from './pages/LoginScreen';
 import HomePage from './pages/HomePage';
 import ShopPage from './pages/ShopPage';
 import SearchPage from './pages/SearchPage';
@@ -18,30 +22,21 @@ import ItemPage from './pages/ItemPage';
 import CreateListingPage from './pages/SellPages/CreateListingPage';
 import SearchUsersPage from './pages/HomePages/SearchUsersPage';
 import CartPage from './pages/ShopPages/CartPage';
-import SettingsPage from './pages/ProfilePages/SettingsPage'
+import SettingsPage from './pages/ProfilePages/SettingsPage';
 import NotificationsPage from './pages/ProfilePages/NotificationsPage';
-import UserProfilePage from './pages/UserProfilePage'
+import UserProfilePage from './pages/UserProfilePage';
 
 // Create Bottom Tab Navigator
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
-function AuthStack() {
+// Create an Auth stack for login and account creation
+function AuthStackNavigator() {
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerStyle: { backgroundColor: '#ffffff' },
-        headerTintColor: '#4CB0E6',
-        headerTitleStyle: { color: '#000' },
-        headerTitleAlign: 'center',
-      }}
-    >
-      <Stack.Screen
-        name="CreateAccountScreen"
-        component={CreateAccountScreen}
-        options={{ title: 'Create Account', headerShown: false }}
-      />
-      {/* Add LoginScreen or other auth screens if necessary */}
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="LoginScreen" component={LoginScreen} />
+      <Stack.Screen name="CreateAccountScreen" component={CreateAccountScreen} />
+      <Stack.Screen name="HomeTab" component={HomePage} />
     </Stack.Navigator>
   );
 }
@@ -85,7 +80,6 @@ function MainTabNavigator() {
   );
 }
 
-
 // Home Stack for HomePage and ItemDetailScreen navigation
 function HomeStack() {
   return (
@@ -119,8 +113,8 @@ function HomeStack() {
       />
       <Stack.Screen
         name="UserProfilePage"
-        component={UserProfilePage} // Use the correct component name
-        options={{ title: 'User Profile' }} // Title for user profile page
+        component={UserProfilePage} 
+        options={{ title: 'User Profile' }} 
       />
     </Stack.Navigator>
   );
@@ -212,7 +206,7 @@ function SearchStack() {
 }
 
 // Profile Stack for ProfilePage, SettingsPage, and NotificationsPage navigation
-function ProfileStack({ navigation }) {
+function ProfileStack() {
   return (
     <Stack.Navigator
       screenOptions={{
@@ -242,31 +236,27 @@ function ProfileStack({ navigation }) {
 }
 
 export default function App() {
+  const [user, loading] = useAuthState(auth); // Firebase authentication
+
   return (
-    <PaperProvider>
+    <UserProvider>
       <NavigationContainer>
-        <View style={styles.container}>
+        {user ? (
+          <MainTabNavigator />
+        ) : (
           <Stack.Navigator initialRouteName="Auth">
             {/* Authentication Flow */}
             <Stack.Screen 
               name="Auth" 
-              component={AuthStack} 
-              options={{ headerShown: false }} 
-            />
-            
-            {/* Main App Tab Navigator */}
-            <Stack.Screen 
-              name="MainApp" 
-              component={MainTabNavigator} 
+              component={AuthStackNavigator} 
               options={{ headerShown: false }} 
             />
           </Stack.Navigator>
-        </View>
+        )}
       </NavigationContainer>
-    </PaperProvider>
+    </UserProvider>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: {

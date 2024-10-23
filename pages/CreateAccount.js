@@ -1,56 +1,46 @@
-import React, { useState } from 'react'; // The core library for using interfaces 
-import { View, TextInput, Text, StyleSheet, Alert, TouchableOpacity, useColorScheme } from 'react-native'; // UI components from React Native
-import { createUserWithEmailAndPassword } from 'firebase/auth'; // This is a function to create a new user with an email and a password 
-import { auth, db } from '../firebaseConfig'; // Imports the Firebase authentication and firestore instances from the "firebaseConfig" file
-import { doc, setDoc } from 'firebase/firestore'; // Functions that are used to interact with Firebase documents
+import React, { useState } from 'react';
+import { View, TextInput, Text, StyleSheet, Alert, TouchableOpacity, useColorScheme } from 'react-native';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth, db } from '../firebaseConfig'; // Import auth and db (Firestore)
+import { doc, setDoc } from 'firebase/firestore'; // Firestore functions
 
+export default function CreateAccountScreen({ navigation }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [firstName, setFirstName] = useState('');  
+  const [lastName, setLastName] = useState('');    
 
-// Defines a react native component named "CreateAccountScreen";   'navigation' recieves the naviagtion prop from React Navigation to naviagte between screens
-export default function CreateAccountScreen({ navigation }) { 
-    // (email, password, confirmPassword, firstName, lastName) are all variables that can store user input. 
-    // (setEmail, setPassword, etc.) are all functions that are used to update the corresponding fields
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [firstName, setFirstName] = useState('');
-    const [lastName, setLastName] = useState('');
+  const scheme = useColorScheme();  // Detect dark mode
+  const isDarkMode = scheme === 'dark';  // Determine if dark mode is active
 
-    const scheme = useColorScheme(); // Detects the current color scheme (light or dark) of the device
-    const isDarkMode = scheme === 'dark'; // true if teh device is in dark mode
-
-    // Define a funciton that handles account creation:
-    // The 'async' keyword means that the fucntion will return a promise. 
-    // A 'promise' in JS is an object that represents the eventual completion (or failure) of an async operation and its reulting value. It has 3 states: (Pending, Fulfilled, and Rejected).
-    // An async function returns a promise wether it is scecified or not. The value that is returned inside the funciton is automatically wrapped in a promise
-    const handleAccountCreation = async () => { 
-         if(password !== confirmPassword) {
-            Alert.alert('Error', 'Passwords do not match');
-            return;
-         }
+  // Function to handle account creation
+  const handleCreateAccount = async () => {
+    if (password !== confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
 
     try {
-        // Create a user with Firebase Authentication:
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password); // Creates a new user with the provided email and password. This method is provided by firebvase.
-        const user = userCredential.user;  // 'userCredential' contains user info upon succesfull creation above
+      // Create user with email and password using Firebase Authentication
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
 
-        // The 'await' keyword can only be used in an async function. it pasuses the execution of a function untik the promise it is waiting for is resolved. Once resolved; it returns the promised value.
-        // 'setDoc' creates or overwrites a document in Firestore. This creates the user collection (if it doesnt exist) and adds a document with teh specified fields: (firstName, lastName, and email)
-        // 'doc(...)' specifies the document location
-        await setDoc(doc(db, 'users', user.uid), { 
-            firstName: firstName,
-            lastName: lastName,
-            email: email,
-            password: password,
-        });
+      // Store user's first name, last name, and email in Firestore (exclude password)
+      await setDoc(doc(db, 'users', user.uid), {
+        firstName: firstName,
+        lastName: lastName,
+        email: email,
+      });
 
-        Alert.alert('Success', 'Account has been craeted successfully'); // Success message
-        navigation.navigate('MainApp'); // Naviagtes the user back to the home tab    
+      Alert.alert('Success', 'Account created successfully');
+      navigation.navigate('HomeTab'); // Navigate to home or main screen
     } catch (error) {
-        Alert.alert('Error', error.message);
+      Alert.alert('Error', error.message);
     }
-};
+  };
 
-return (
+  return (
     <View style={isDarkMode ? styles.darkContainer : styles.container}>
       <Text style={isDarkMode ? styles.darkTitle : styles.title}>Create Your Account</Text>
 
@@ -104,7 +94,7 @@ return (
       />
 
       {/* Create Account Button */}
-      <TouchableOpacity style={isDarkMode ? styles.darkButton : styles.button} onPress={handleAccountCreation}>
+      <TouchableOpacity style={isDarkMode ? styles.darkButton : styles.button} onPress={handleCreateAccount}>
         <Text style={styles.buttonText}>Create Account</Text>
       </TouchableOpacity>
 
@@ -129,7 +119,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 40,
-    color: '#00796B',
+    color: '#4CB0E6',
   },
   input: {
     height: 50,
@@ -138,11 +128,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     fontSize: 16,
     marginBottom: 20,
-    borderColor: '#00796B',
+    borderColor: '#4CB0E6',
     borderWidth: 1,
   },
   button: {
-    backgroundColor: '#00796B',
+    backgroundColor: '#4CB0E6',
     paddingVertical: 15,
     borderRadius: 8,
     alignItems: 'center',
@@ -155,7 +145,7 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     textAlign: 'center',
-    color: '#00796B',
+    color: '#4CB0E6',
     fontSize: 16,
     fontWeight: 'bold',
   },

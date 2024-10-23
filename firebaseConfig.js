@@ -1,8 +1,11 @@
 // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
+import { initializeApp } from 'firebase/app';
 import { getAnalytics } from "firebase/analytics";
-import { getAuth } from "firebase/auth";         // Import getAuth
-import { getFirestore } from "firebase/firestore"; // Import getFirestore
+import { getAuth, initializeAuth, browserLocalPersistence, getReactNativePersistence } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage'; // Import Firebase Storage
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native'; // Import to detect platform
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
@@ -18,13 +21,28 @@ const firebaseConfig = {
   measurementId: "G-08NEEN3BF1"
 };
 
-// Initialize Firebase
+// Initialize Firebase app
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
 
-// Initialize Firebase Authentication and Firestore
-const auth = getAuth(app);       // Initialize auth
-const db = getFirestore(app);    // Initialize Firestore
+let auth;
 
-// Export auth and db so they can be used in other parts of your app
-export { auth, db };
+// Check if the platform is web or native
+if (Platform.OS === 'web') {
+  // For web platform, use browserLocalPersistence
+  auth = getAuth(app);
+  auth.setPersistence(browserLocalPersistence);
+} else {
+  // For native platforms (iOS/Android), use React Native persistence
+  auth = initializeAuth(app, {
+    persistence: getReactNativePersistence(AsyncStorage),
+  });
+}
+
+// Initialize Firestore
+const db = getFirestore(app);
+
+// Initialize Firebase Storage
+const storage = getStorage(app); // Initialize Firebase Storage
+
+// Export auth, db, and storage for use in your app
+export { auth, db, storage };
