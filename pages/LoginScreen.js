@@ -73,12 +73,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F5F5',
   },
   logo: {
-    width: 350,
-    height: 150,
+    width: 450, // Increase the width
+    height: 250, // Increase the height
     resizeMode: 'contain',
     alignSelf: 'center',
     marginTop: -50,
-    marginBottom: 50,
   },
   input: {
     height: 50,
