@@ -5,11 +5,11 @@ import { auth, db } from '../../firebaseConfig';
 import { doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore'; // Firestore update functions
 import { collection, addDoc } from 'firebase/firestore'; // Firestore collection functions
 
-export default function ShippingAddressesPage() {
-  const { userProfile } = useContext(UserContext);
+export default function ShippingAddressesPage({ navigation }) {
+  const { userProfile, setUserProfile } = useContext(UserContext);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [editingAddress, setEditingAddress] = useState(false);
-  const [currentAddress, setCurrentAddress] = useState(null);
+  const [editingAddress, setEditingAddress] = useState(false); // Track if editing an address
+  const [currentAddress, setCurrentAddress] = useState(null); // Track the address being edited
   const [newAddress, setNewAddress] = useState({
     firstName: '',
     lastName: '',
@@ -20,19 +20,41 @@ export default function ShippingAddressesPage() {
     zipCode: '',
   });
 
+  // Close modal and reset address form
+  const closeModal = () => {
+    setIsModalVisible(false);
+  };
+
+  // Handle modal dismiss to reset the form fields
+  const handleModalDismiss = () => {
+    setNewAddress({
+      firstName: '',
+      lastName: '',
+      streetAddress: '',
+      apt: '',
+      city: '',
+      state: '',
+      zipCode: '',
+    });
+    setCurrentAddress(null); // Reset currentAddress when closing modal
+  };
+
   // Handle saving a new or edited address
   const handleSaveAddress = async () => {
-    const addressesRef = collection(db, 'users', auth.currentUser.uid, 'shippingAddresses');
+    const updatedAddresses = editingAddress
+      ? userProfile.shippingAddresses.map(addr =>
+          addr.id === currentAddress.id ? { ...newAddress, id: currentAddress.id } : addr
+        )
+      : [...(userProfile.shippingAddresses || []), { ...newAddress, id: Date.now().toString() }];
 
     try {
-      if (editingAddress) {
-        const addressDocRef = doc(db, 'users', auth.currentUser.uid, 'shippingAddresses', currentAddress.id);
-        await updateDoc(addressDocRef, { ...newAddress });
-      } else {
-        await addDoc(addressesRef, { ...newAddress });
-      }
+      // Update Firestore with the new list of addresses
+      const userRef = doc(db, 'users', auth.currentUser.uid);
+      await updateDoc(userRef, { shippingAddresses: updatedAddresses });
 
-      setIsModalVisible(false);
+      // Update context
+      setUserProfile({ ...userProfile, shippingAddresses: updatedAddresses });
+      closeModal(); // Close modal after saving
     } catch (error) {
       console.error('Error saving address:', error);
       Alert.alert('Error', 'Failed to save address. Please try again.');
@@ -47,9 +69,15 @@ export default function ShippingAddressesPage() {
         text: 'Remove',
         style: 'destructive',
         onPress: async () => {
+          const updatedAddresses = userProfile.shippingAddresses.filter(addr => addr.id !== currentAddress.id);
+
           try {
-            const addressDocRef = doc(db, 'users', auth.currentUser.uid, 'shippingAddresses', currentAddress.id);
-            await deleteDoc(addressDocRef);
+            // Update Firestore by removing the address
+            const userRef = doc(db, 'users', auth.currentUser.uid);
+            await updateDoc(userRef, { shippingAddresses: updatedAddresses });
+
+            // Update context
+            setUserProfile({ ...userProfile, shippingAddresses: updatedAddresses });
             setIsModalVisible(false);
           } catch (error) {
             console.error('Error removing address:', error);
@@ -62,7 +90,7 @@ export default function ShippingAddressesPage() {
 
   // Open the form for adding a new address
   const handleAddAddress = () => {
-    setEditingAddress(false);
+    setEditingAddress(false); // Indicate that this is for a new address
     setNewAddress({
       firstName: '',
       lastName: '',
@@ -77,64 +105,115 @@ export default function ShippingAddressesPage() {
 
   // Open the form for editing an existing address
   const handleEditAddress = (address) => {
-    setEditingAddress(true);
-    setCurrentAddress(address);
-    setNewAddress({ ...address });
+    setEditingAddress(true); // Indicate that we are editing
+    setCurrentAddress(address); // Set the current address
+    setNewAddress({ ...address }); // Populate the form with the existing address
     setIsModalVisible(true);
   };
-
-  const renderAddressItem = ({ item }) => (
-    <View style={styles.addressContainer}>
-      <View style={styles.addressInfo}>
-        <Text style={styles.addressText}>{item.firstName} {item.lastName}</Text>
-        <Text style={styles.addressText}>{item.streetAddress}</Text>
-        {item.apt && <Text style={styles.addressText}>Apt: {item.apt}</Text>}
-        <Text style={styles.addressText}>{item.city}, {item.state} {item.zipCode}</Text>
-      </View>
-      <TouchableOpacity style={styles.editButton} onPress={() => handleEditAddress(item)}>
-        <Text style={styles.editButtonText}>Edit</Text>
-      </TouchableOpacity>
-    </View>
-  );
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Shipping Addresses</Text>
 
+      {/* List of shipping addresses */}
       <FlatList
         data={userProfile.shippingAddresses || []}
-        renderItem={renderAddressItem}
+        renderItem={({ item }) => (
+          <View style={styles.addressContainer}>
+            <View style={styles.addressInfo}>
+              <Text style={styles.addressText}>{item.firstName} {item.lastName}</Text>
+              <Text style={styles.addressText}>{item.streetAddress}</Text>
+              {item.apt && <Text style={styles.addressText}>Apt: {item.apt}</Text>}
+              <Text style={styles.addressText}>{item.city}, {item.state} {item.zipCode}</Text>
+            </View>
+            <TouchableOpacity 
+              style={styles.editButton}
+              onPress={() => handleEditAddress(item)}
+            >
+              <Text style={styles.editButtonText}>Edit</Text>
+            </TouchableOpacity>
+          </View>
+        )}
         keyExtractor={(item) => item.id}
         ListEmptyComponent={<Text style={styles.infoText}>No shipping addresses available.</Text>}
       />
 
-      <TouchableOpacity style={styles.newAddressButton} onPress={handleAddAddress}>
+      {/* New Shipping Address Button */}
+      <TouchableOpacity 
+        style={styles.newAddressButton}
+        onPress={handleAddAddress}
+      >
         <Text style={styles.newAddressButtonText}>New Shipping Address</Text>
       </TouchableOpacity>
 
-      <Modal visible={isModalVisible} animationType="slide" transparent={true}>
+      {/* Modal for Adding or Editing Address */}
+      <Modal
+        visible={isModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={closeModal} // For Android back button
+        onDismiss={handleModalDismiss} // Reset form when modal is dismissed
+      >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <TouchableOpacity style={styles.closeButton} onPress={() => setIsModalVisible(false)}>
+            <TouchableOpacity style={styles.closeButton} onPress={closeModal}>
               <Text style={styles.closeButtonText}>X</Text>
             </TouchableOpacity>
 
             <Text style={styles.modalTitle}>{editingAddress ? 'Edit Address' : 'Add Address'}</Text>
 
-            <TextInput placeholder="First Name" style={styles.input} value={newAddress.firstName} onChangeText={(text) => setNewAddress({ ...newAddress, firstName: text })} />
-            <TextInput placeholder="Last Name" style={styles.input} value={newAddress.lastName} onChangeText={(text) => setNewAddress({ ...newAddress, lastName: text })} />
-            <TextInput placeholder="Street Address" style={styles.input} value={newAddress.streetAddress} onChangeText={(text) => setNewAddress({ ...newAddress, streetAddress: text })} />
-            <TextInput placeholder="Apt, Suite, Bldg (optional)" style={styles.input} value={newAddress.apt} onChangeText={(text) => setNewAddress({ ...newAddress, apt: text })} />
-            <TextInput placeholder="City" style={styles.input} value={newAddress.city} onChangeText={(text) => setNewAddress({ ...newAddress, city: text })} />
+            {/* Form Fields */}
+            <TextInput
+              placeholder="First Name"
+              style={styles.input}
+              value={newAddress.firstName}
+              onChangeText={(text) => setNewAddress({ ...newAddress, firstName: text })}
+            />
+            <TextInput
+              placeholder="Last Name"
+              style={styles.input}
+              value={newAddress.lastName}
+              onChangeText={(text) => setNewAddress({ ...newAddress, lastName: text })}
+            />
+            <TextInput
+              placeholder="Street Address"
+              style={styles.input}
+              value={newAddress.streetAddress}
+              onChangeText={(text) => setNewAddress({ ...newAddress, streetAddress: text })}
+            />
+            <TextInput
+              placeholder="Apt, Suite, Bldg (optional)"
+              style={styles.input}
+              value={newAddress.apt}
+              onChangeText={(text) => setNewAddress({ ...newAddress, apt: text })}
+            />
+            <TextInput
+              placeholder="City"
+              style={styles.input}
+              value={newAddress.city}
+              onChangeText={(text) => setNewAddress({ ...newAddress, city: text })}
+            />
             <View style={styles.stateZipContainer}>
-              <TextInput placeholder="State" style={[styles.input, styles.stateInput]} value={newAddress.state} onChangeText={(text) => setNewAddress({ ...newAddress, state: text })} />
-              <TextInput placeholder="ZIP Code" style={[styles.input, styles.zipInput]} value={newAddress.zipCode} onChangeText={(text) => setNewAddress({ ...newAddress, zipCode: text })} />
+              <TextInput
+                placeholder="State"
+                style={[styles.input, styles.stateInput]}
+                value={newAddress.state}
+                onChangeText={(text) => setNewAddress({ ...newAddress, state: text })}
+              />
+              <TextInput
+                placeholder="ZIP Code"
+                style={[styles.input, styles.zipInput]}
+                value={newAddress.zipCode}
+                onChangeText={(text) => setNewAddress({ ...newAddress, zipCode: text })}
+              />
             </View>
 
+            {/* Save Button */}
             <TouchableOpacity style={styles.saveButton} onPress={handleSaveAddress}>
               <Text style={styles.saveButtonText}>Save</Text>
             </TouchableOpacity>
 
+            {/* Remove Button for Editing */}
             {editingAddress && (
               <TouchableOpacity style={styles.removeButton} onPress={handleRemoveAddress}>
                 <Text style={styles.removeButtonText}>Remove</Text>
@@ -221,6 +300,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 10,
     right: 20,
+    padding: 10,
+    zIndex: 1,
   },
   closeButtonText: {
     fontSize: 24,
