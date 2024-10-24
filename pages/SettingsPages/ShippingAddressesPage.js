@@ -41,6 +41,12 @@ export default function ShippingAddressesPage({ navigation }) {
 
   // Handle saving a new or edited address
   const handleSaveAddress = async () => {
+    // Check for required fields
+    if (!newAddress.firstName || !newAddress.lastName || !newAddress.streetAddress || !newAddress.city || !newAddress.state || !newAddress.zipCode) {
+      Alert.alert('Error', 'Please fill out all required fields.');
+      return;
+    }
+
     const updatedAddresses = editingAddress
       ? userProfile.shippingAddresses.map(addr =>
           addr.id === currentAddress.id ? { ...newAddress, id: currentAddress.id } : addr
