@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#4CAF50',
     paddingVertical: 8,
     paddingHorizontal: 12,
-    borderRadius: 5,
+    borderRadius: 15,
   },
   editButtonText: {
     color: '#fff',
@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
     backgroundColor: '#007BFF',
     paddingVertical: 12,
-    borderRadius: 5,
+    borderRadius: 15,
     alignItems: 'center',
   },
   newAddressButtonText: {
@@ -342,7 +342,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
     backgroundColor: '#4CAF50',
     paddingVertical: 12,
-    borderRadius: 5,
+    borderRadius: 15,
     alignItems: 'center',
   },
   saveButtonText: {
@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     backgroundColor: '#FF3B30', // Red color to indicate danger
     paddingVertical: 12,
-    borderRadius: 5,
+    borderRadius: 15,
     alignItems: 'center',
   },
   removeButtonText: {

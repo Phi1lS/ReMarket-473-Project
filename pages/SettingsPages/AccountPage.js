@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
     width: '100%',
     padding: 15,
     backgroundColor: '#4CAF50',
-    borderRadius: 5,
+    borderRadius: 15,
     alignItems: 'center',
     marginTop: 20,
   },

@@ -99,7 +99,7 @@ function SettingsStack() {
       <Stack.Screen name="AccountPage" component={AccountPage} options={{ title: 'Account' }} />
       <Stack.Screen name="PaymentMethodsPage" component={PaymentMethodsPage} options={{ title: 'Payment Methods' }} />
       <Stack.Screen name="ShippingAddressesPage" component={ShippingAddressesPage} options={{ title: '' }} />
-      <Stack.Screen name="ChangePasswordPage" component={ChangePasswordPage} options={{ title: 'Change Password' }} />
+      <Stack.Screen name="ChangePasswordPage" component={ChangePasswordPage} options={{ title: '' }} />
     </Stack.Navigator>
   );
 }
