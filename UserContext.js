@@ -9,6 +9,8 @@ export const UserProvider = ({ children }) => {
     firstName: '',
     lastName: '',
     email: '',
+    username: '', // New field for username
+    avatar: '',   // New field for avatar (profile picture)
   });
 
   useEffect(() => {
@@ -28,6 +30,8 @@ export const UserProvider = ({ children }) => {
               firstName: userData.firstName || '',
               lastName: userData.lastName || '',
               email: userData.email || '',
+              username: userData.username || '', // Fetch username from Firestore
+              avatar: userData.avatar || '',     // Fetch avatar (profile picture) from Firestore
             });
           }
         });
@@ -37,6 +41,8 @@ export const UserProvider = ({ children }) => {
           firstName: '',
           lastName: '',
           email: '',
+          username: '',
+          avatar: '',
         });
 
         // Unsubscribe from real-time listener
@@ -64,6 +70,8 @@ export const UserProvider = ({ children }) => {
           firstName: userData.firstName || '',
           lastName: userData.lastName || '',
           email: userData.email || '',
+          username: userData.username || '', // Fetch username
+          avatar: userData.avatar || '',     // Fetch avatar (profile picture)
         });
       }
     } catch (error) {

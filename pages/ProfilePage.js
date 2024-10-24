@@ -1,11 +1,14 @@
-import React, { useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from 'react-native-paper';
+import { UserContext } from '../UserContext'; // Import the user context
 
 const avatarPlaceholder = require('../assets/avatar.png');
 
 export default function ProfilePage({ navigation }) {
+  const { userProfile } = useContext(UserContext); // Access user data and avatar URI from context
+
   const [selectedTab, setSelectedTab] = useState('wallet'); // Tabs between 'wallet' and 'purchases'
   const [isPayPalLinked] = useState(true); // Set to true for demo purposes
 
@@ -29,9 +32,13 @@ export default function ProfilePage({ navigation }) {
         </View>
 
         {/* Avatar and User Info */}
-        <Avatar.Image size={90} source={avatarPlaceholder} style={styles.avatar} />
-        <Text style={styles.name}>User Name</Text>
-        <Text style={styles.username}>@User-Name-7</Text>
+        <Avatar.Image
+          size={90}
+          source={userProfile.avatar ? { uri: userProfile.avatar } : avatarPlaceholder} // Use avatar if available, else fallback to placeholder
+          style={styles.avatar}
+        />
+        <Text style={styles.name}>{`${userProfile.firstName} ${userProfile.lastName}`}</Text>
+        <Text style={styles.username}>{`@${userProfile.username}`}</Text>
       </View>
 
       {/* Tab Control: Wallet vs Purchases */}
