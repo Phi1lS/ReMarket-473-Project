@@ -8,8 +8,9 @@ export default function CreateAccountScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [firstName, setFirstName] = useState('');  
-  const [lastName, setLastName] = useState('');    
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [username, setUsername] = useState(''); // New field for username
 
   const scheme = useColorScheme();  // Detect dark mode
   const isDarkMode = scheme === 'dark';  // Determine if dark mode is active
@@ -26,10 +27,11 @@ export default function CreateAccountScreen({ navigation }) {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Store user's first name, last name, and email in Firestore (exclude password)
+      // Store user's first name, last name, username, and email in Firestore
       await setDoc(doc(db, 'users', user.uid), {
         firstName: firstName,
         lastName: lastName,
+        username: username, // Save the username
         email: email,
       });
 
@@ -59,6 +61,15 @@ export default function CreateAccountScreen({ navigation }) {
         placeholder="Last Name"
         value={lastName}
         onChangeText={setLastName}
+        placeholderTextColor={isDarkMode ? '#AAAAAA' : '#888'}
+      />
+
+      {/* Username Input */}
+      <TextInput
+        style={isDarkMode ? styles.darkInput : styles.input}
+        placeholder="Username"
+        value={username}
+        onChangeText={setUsername}
         placeholderTextColor={isDarkMode ? '#AAAAAA' : '#888'}
       />
 
