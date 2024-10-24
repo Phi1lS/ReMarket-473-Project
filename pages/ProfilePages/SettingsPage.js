@@ -21,18 +21,37 @@ export default function SettingsPage({ navigation }) {
     </TouchableOpacity>
   );
 
+  // Show a confirmation prompt before logout
+  const confirmLogout = () => {
+    Alert.alert(
+      'Confirm Logout',
+      'Are you sure you want to log out?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel', // Default style
+        },
+        {
+          text: 'Log Out', // Log out button
+          onPress: () => handleLogout(), // Call handleLogout on confirmation
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
+  // Perform the logout operation
   const handleLogout = async () => {
     try {
       await signOut(auth); // Sign out the user from Firebase
       Alert.alert('Logged out', 'You have been logged out successfully.');
-      
     } catch (error) {
       Alert.alert('Error', error.message); // Handle error during sign-out
     }
   };
 
   const renderLogoutItem = () => (
-    <TouchableOpacity style={styles.item} onPress={handleLogout}>
+    <TouchableOpacity style={styles.item} onPress={confirmLogout}>
       <View style={styles.itemContent}>
         <Ionicons name="log-out-outline" size={24} color="black" style={styles.icon} />
         <Text style={[styles.itemText, styles.logoutText]}>Log Out of ReMarket</Text>
