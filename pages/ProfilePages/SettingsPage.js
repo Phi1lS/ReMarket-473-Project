@@ -1,10 +1,53 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { signOut } from 'firebase/auth'; // Import signOut function from Firebase
+import { auth } from '../../firebaseConfig'; // Ensure you have the correct Firebase config path
 
-export default function SettingsPage() {
+export default function SettingsPage({ navigation }) {
+  const settingsOptions = [
+    { key: 'Account', icon: 'person-outline', screen: 'AccountPage' },
+    { key: 'Payment Methods', icon: 'card-outline', screen: 'PaymentMethodsPage' },
+    { key: 'Shipping Addresses', icon: 'location-outline', screen: 'ShippingAddressesPage' },
+    { key: 'Change Password', icon: 'lock-closed-outline', screen: 'ChangePasswordPage' },
+  ];
+
+  const renderItem = ({ item }) => (
+    <TouchableOpacity style={styles.item} onPress={() => navigation.navigate(item.screen)}>
+      <View style={styles.itemContent}>
+        <Ionicons name={item.icon} size={24} color="black" style={styles.icon} />
+        <Text style={styles.itemText}>{item.key}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth); // Sign out the user from Firebase
+      Alert.alert('Logged out', 'You have been logged out successfully.');
+      
+    } catch (error) {
+      Alert.alert('Error', error.message); // Handle error during sign-out
+    }
+  };
+
+  const renderLogoutItem = () => (
+    <TouchableOpacity style={styles.item} onPress={handleLogout}>
+      <View style={styles.itemContent}>
+        <Ionicons name="log-out-outline" size={24} color="black" style={styles.icon} />
+        <Text style={[styles.itemText, styles.logoutText]}>Log Out of ReMarket</Text>
+      </View>
+    </TouchableOpacity>
+  );
+
   return (
     <View style={styles.container}>
-      <Text>Settings Page</Text>
+      <FlatList
+        data={settingsOptions}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.key}
+        ListFooterComponent={renderLogoutItem} // Add the log out option at the end
+      />
     </View>
   );
 }
@@ -12,7 +55,25 @@ export default function SettingsPage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
+    padding: 16,
+    backgroundColor: '#fff',
+  },
+  item: {
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+  },
+  itemContent: {
+    flexDirection: 'row',
     alignItems: 'center',
+  },
+  icon: {
+    marginRight: 16,
+  },
+  itemText: {
+    fontSize: 18,
+  },
+  logoutText: {
+    color: 'red', // Red color for the logout option to highlight it
   },
 });

@@ -25,6 +25,10 @@ import CartPage from './pages/ShopPages/CartPage';
 import SettingsPage from './pages/ProfilePages/SettingsPage';
 import NotificationsPage from './pages/ProfilePages/NotificationsPage';
 import UserProfilePage from './pages/UserProfilePage';
+import AccountPage from './pages/SettingsPages/AccountPage';
+import PaymentMethodsPage from './pages/SettingsPages/PaymentMethodsPage';
+import ShippingAddressesPage from './pages/SettingsPages/ShippingAddressesPage';
+import ChangePasswordPage from './pages/SettingsPages/ChangePasswordPage';
 
 // Create Bottom Tab Navigator
 const Tab = createBottomTabNavigator();
@@ -77,6 +81,26 @@ function MainTabNavigator() {
       <Tab.Screen name="SellingTab" component={SellingStack} options={{ title: 'Selling' }} />
       <Tab.Screen name="ProfileTab" component={ProfileStack} options={{ title: 'My Profile' }} />
     </Tab.Navigator>
+  );
+}
+
+// Settings Stack for the settings-related screens
+function SettingsStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: '#ffffff' },
+        headerTintColor: '#4CB0E6',
+        headerTitleStyle: { color: '#000' },
+        headerTitleAlign: 'center',
+      }}
+    >
+      <Stack.Screen name="SettingsPage" component={SettingsPage} options={{ title: 'Settings' }} />
+      <Stack.Screen name="AccountPage" component={AccountPage} options={{ title: 'Account' }} />
+      <Stack.Screen name="PaymentMethodsPage" component={PaymentMethodsPage} options={{ title: 'Payment Methods' }} />
+      <Stack.Screen name="ShippingAddressesPage" component={ShippingAddressesPage} options={{ title: 'Shipping Addresses' }} />
+      <Stack.Screen name="ChangePasswordPage" component={ChangePasswordPage} options={{ title: 'Change Password' }} />
+    </Stack.Navigator>
   );
 }
 
@@ -223,8 +247,8 @@ function ProfileStack() {
       />
       <Stack.Screen 
         name="Settings" 
-        component={SettingsPage} 
-        options={{ title: 'Settings' }} 
+        component={SettingsStack} 
+        options={{ title: 'Settings', headerShown: false }} 
       />
       <Stack.Screen 
         name="Notifications" 
