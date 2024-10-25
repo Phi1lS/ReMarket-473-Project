@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
   },
   searchBar: {
     height: 45,
-    borderColor: '#58A4B0', // Teal border for consistency
+    borderColor: '#4CB0E6', // Teal border for consistency
     borderWidth: 1,
     borderRadius: 25,
     paddingLeft: 20,
