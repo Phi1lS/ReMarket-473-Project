@@ -82,7 +82,7 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     padding: 20,
-    paddingTop: Platform.OS === 'ios' ? 80 : 20,
+    paddingTop: Platform.OS === 'ios' ? 80 : 60,
     backgroundColor: '#f5f5f5',
   },
   header: {

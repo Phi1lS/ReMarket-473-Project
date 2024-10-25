@@ -64,13 +64,14 @@ export const UserProvider = ({ children }) => {
       const userSnapshot = await getDoc(userRef);
       if (userSnapshot.exists()) {
         const userData = userSnapshot.data();
+        console.log('Fetched User Profile:', userData);  // Add this log to see profile data
         setUserProfile((prevProfile) => ({
           ...prevProfile,
           firstName: userData.firstName || '',
           lastName: userData.lastName || '',
           email: userData.email || '',
           username: userData.username || '',
-          avatar: userData.avatar || '',
+          avatar: userData.avatar || '',  // This may be the culprit if it's undefined/null
         }));
       }
     } catch (error) {

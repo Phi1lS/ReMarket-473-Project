@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { UserContext } from '../../UserContext'; 
 import { doc, setDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'; // Import Firebase Storage functions
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage'; // Import Firebase Storage functions
 import { db, auth, storage } from '../../firebaseConfig'; // Import your Firebase config
 
 export default function AccountPage() {
@@ -53,29 +53,33 @@ export default function AccountPage() {
 
   // Handle picking an image
   const pickImage = async () => {
-    let permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    try {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
   
-    if (permissionResult.granted === false) {
-      Alert.alert('Permission Denied', 'Permission to access camera roll is required!');
-      return;
-    }
+      if (permissionResult.granted === false) {
+        Alert.alert('Permission Denied', 'Permission to access camera roll is required!');
+        return;
+      }
   
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
+      let result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1,
+      });
   
-    console.log('Image Picker Result:', result); // Log the result to ensure we get a valid image URI
+      console.log('Image Picker Result:', result); // Log the result to ensure we get a valid image URI
   
-    if (!result.canceled) {
-      const uri = result.assets[0].uri; // Access the image URI correctly from assets array
-      if (uri) {
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const uri = result.assets[0].uri; // Access the image URI correctly from assets array
+        console.log('Selected image URI:', uri);
         uploadImage(uri); // Pass the image URI to the upload function
       } else {
         Alert.alert('Error', 'Unable to pick an image. Please try again.');
       }
+    } catch (error) {
+      console.error('Error during image picking:', error);
+      Alert.alert('Error', 'Failed to pick an image. Please try again.');
     }
   };
 
@@ -83,37 +87,36 @@ export default function AccountPage() {
   const uploadImage = async (uri) => {
     setUploading(true);
     try {
-      const blob = await new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.onload = function () {
-          resolve(xhr.response);
-        };
-        xhr.onerror = function (e) {
-          console.log(e);
-          reject(new TypeError('Network request failed'));
-        };
-        xhr.responseType = 'blob';
-        xhr.open('GET', uri, true);
-        xhr.send(null);
-      });
-  
-      // Create a reference to the file in Firebase Storage
-      const storageRef = ref(storage, `avatars/${auth.currentUser.uid}.jpg`);
-  
-      // Upload the file to Firebase Storage
-      await uploadBytes(storageRef, blob);
-  
-      // Get the download URL
-      const downloadURL = await getDownloadURL(storageRef);
-  
-      // Update the avatar URL in local state and Firestore
-      setAvatar(downloadURL);
-  
-      await setDoc(doc(db, 'users', auth.currentUser.uid), { avatar: downloadURL }, { merge: true });
-  
-      Alert.alert('Success', 'Profile picture updated.');
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      console.log('Blob successfully created.');
+
+      const avatarRef = ref(storage, `avatars/${auth.currentUser.uid}.jpg`);
+
+      const uploadTask = uploadBytesResumable(avatarRef, blob);
+
+      uploadTask.on(
+        'state_changed',
+        (snapshot) => {
+          console.log(`Upload progress: ${snapshot.bytesTransferred}/${snapshot.totalBytes}`);
+        },
+        (error) => {
+          console.error('Error during Firebase Storage upload:', error);
+          Alert.alert('Error', 'Failed to upload image. Please try again.');
+        },
+        async () => {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          console.log('Download URL obtained:', downloadURL);
+
+          // Update avatar in state and Firestore
+          setAvatar(downloadURL);
+          await setDoc(doc(db, 'users', auth.currentUser.uid), { avatar: downloadURL }, { merge: true });
+
+          Alert.alert('Success', 'Profile picture updated.');
+        }
+      );
     } catch (error) {
-      console.error('Error uploading image:', error);
+      console.error('Error during image upload process:', error);
       Alert.alert('Error', 'Failed to upload profile picture. Please try again.');
     } finally {
       setUploading(false);
