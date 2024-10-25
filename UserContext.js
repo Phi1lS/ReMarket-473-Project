@@ -9,14 +9,16 @@ export const UserProvider = ({ children }) => {
     firstName: '',
     lastName: '',
     email: '',
-    username: '', // Field for username
-    avatar: '',   // Field for avatar (profile picture)
-    shippingAddresses: [], // Field for shipping addresses
+    username: '',
+    avatar: '',
+    shippingAddresses: [],
+    listings: [], // Field for listings
   });
 
   useEffect(() => {
-    let unsubscribeProfileListener; // Listener for user profile
-    let unsubscribeAddressListener; // Listener for shipping addresses
+    let unsubscribeProfileListener;
+    let unsubscribeAddressListener;
+    let unsubscribeListingsListener;
 
     const unsubscribeAuth = auth.onAuthStateChanged((user) => {
       if (user) {
@@ -25,16 +27,27 @@ export const UserProvider = ({ children }) => {
 
         // Listen to the shippingAddresses sub-collection under the user's document
         const addressesRef = collection(db, 'users', user.uid, 'shippingAddresses');
-        const q = query(addressesRef);
-        unsubscribeAddressListener = onSnapshot(q, (querySnapshot) => {
+        const qAddresses = query(addressesRef);
+        unsubscribeAddressListener = onSnapshot(qAddresses, (querySnapshot) => {
           const addresses = [];
           querySnapshot.forEach((doc) => {
             addresses.push({ id: doc.id, ...doc.data() });
           });
           setUserProfile((prevProfile) => ({ ...prevProfile, shippingAddresses: addresses }));
         });
+
+        // Listen to the listings sub-collection under the user's document
+        const listingsRef = collection(db, 'users', user.uid, 'listings');
+        const qListings = query(listingsRef);
+        unsubscribeListingsListener = onSnapshot(qListings, (querySnapshot) => {
+          const listings = [];
+          querySnapshot.forEach((doc) => {
+            listings.push({ id: doc.id, ...doc.data() });
+          });
+          setUserProfile((prevProfile) => ({ ...prevProfile, listings }));
+        });
       } else {
-        // Reset user profile and shipping addresses if the user logs out
+        // Reset user profile if the user logs out
         setUserProfile({
           firstName: '',
           lastName: '',
@@ -42,19 +55,18 @@ export const UserProvider = ({ children }) => {
           username: '',
           avatar: '',
           shippingAddresses: [],
+          listings: [], // Reset listings as well
         });
 
-        if (unsubscribeAddressListener) {
-          unsubscribeAddressListener();
-        }
+        if (unsubscribeAddressListener) unsubscribeAddressListener();
+        if (unsubscribeListingsListener) unsubscribeListingsListener();
       }
     });
 
     return () => {
-      unsubscribeAuth(); // Unsubscribe from Firebase Auth listener
-      if (unsubscribeAddressListener) {
-        unsubscribeAddressListener(); // Unsubscribe from shipping addresses listener
-      }
+      unsubscribeAuth();
+      if (unsubscribeAddressListener) unsubscribeAddressListener();
+      if (unsubscribeListingsListener) unsubscribeListingsListener();
     };
   }, []);
 
@@ -64,14 +76,14 @@ export const UserProvider = ({ children }) => {
       const userSnapshot = await getDoc(userRef);
       if (userSnapshot.exists()) {
         const userData = userSnapshot.data();
-        console.log('Fetched User Profile:', userData);  // Add this log to see profile data
+        //console.log('Fetched User Profile:', userData);
         setUserProfile((prevProfile) => ({
           ...prevProfile,
           firstName: userData.firstName || '',
           lastName: userData.lastName || '',
           email: userData.email || '',
           username: userData.username || '',
-          avatar: userData.avatar || '',  // This may be the culprit if it's undefined/null
+          avatar: userData.avatar || '',
         }));
       }
     } catch (error) {

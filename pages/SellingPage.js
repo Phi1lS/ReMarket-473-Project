@@ -1,18 +1,12 @@
-import React from 'react';
-import { View, FlatList, Text, Image, StyleSheet, TouchableOpacity, Platform, StatusBar } from 'react-native';
+import React, { useContext } from 'react';
+import { View, FlatList, Text, Image, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-
-// Sample listings data
-const listings = [
-  { id: '1', name: 'Item 1', description: 'Description of Item 1', price: '100', image: require('../assets/item.png') },
-  { id: '2', name: 'Item 2', description: 'Description of Item 2', price: '200', image: require('../assets/item.png') },
-  { id: '3', name: 'Item 3', description: 'Description of Item 3', price: '300', image: require('../assets/item.png') },
-  { id: '4', name: 'Item 4', description: 'Description of Item 4', price: '400', image: require('../assets/item.png') },
-];
+import { UserContext } from '../UserContext'; // Import UserContext
 
 export default function SellingPage() {
   const navigation = useNavigation();
+  const { userProfile } = useContext(UserContext); // Access UserContext
 
   // Function to render each listing item
   const renderListingItem = ({ item }) => (
@@ -20,11 +14,17 @@ export default function SellingPage() {
       style={styles.listingContainer}
       onPress={() => navigation.navigate('ItemPage', { item, previousScreen: 'SellingPage' })}
     >
-      <Image source={item.image} style={styles.listingImage} />
+      {item.imageUrl ? (
+        <Image source={{ uri: item.imageUrl }} style={styles.listingImage} />
+      ) : (
+        <View style={styles.imagePlaceholder}>
+          <Ionicons name="image-outline" size={40} color="#888" />
+        </View>
+      )}
       <View style={styles.listingDetails}>
-        <Text style={styles.listingName}>{item.name}</Text>
-        <Text style={styles.listingDescription}>{item.description}</Text>
-        <Text style={styles.listingPrice}>${item.price}</Text>
+        <Text style={styles.listingName}>{item.description || 'No Description'}</Text>
+        <Text style={styles.listingPrice}>${item.price || '0.00'}</Text>
+        <Text style={styles.listingQuantity}>Quantity: {item.quantity || '1'}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -36,10 +36,11 @@ export default function SellingPage() {
 
       {/* FlatList to display listings */}
       <FlatList
-        data={listings}
+        data={userProfile.listings} // Use listings from UserContext
         keyExtractor={(item) => item.id}
         renderItem={renderListingItem}
         contentContainerStyle={styles.listingsContainer}
+        ListEmptyComponent={<Text style={styles.emptyMessage}>No listings available.</Text>} // Show when no listings
       />
 
       {/* Floating button to create a new listing */}
