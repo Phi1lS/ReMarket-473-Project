@@ -1,67 +1,77 @@
 import React, { createContext, useState, useEffect } from 'react';
 import { auth, db } from './firebaseConfig';
-import { doc, getDoc, onSnapshot, collection, query } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, collection } from 'firebase/firestore';
 
 export const UserContext = createContext();
 
 export const UserProvider = ({ children }) => {
   const [userProfile, setUserProfile] = useState({
-    id: '', // Store the user ID
+    id: '',
     firstName: '',
     lastName: '',
     email: '',
     username: '',
     avatar: '',
     shippingAddresses: [],
-    listings: [], // Field for listings
+    listings: [],
+    users: [],
   });
+  const [items, setItems] = useState([]); // State for all items in the marketplace
 
   useEffect(() => {
     let unsubscribeProfileListener;
     let unsubscribeAddressListener;
     let unsubscribeListingsListener;
+    let unsubscribeItemsListener;
+    let unsubscribeUsersListener;
 
     const unsubscribeAuth = auth.onAuthStateChanged((user) => {
       if (user) {
-        // Fetch the user's profile from Firestore
         fetchUserProfile(user.uid);
 
-        // Listen to the shippingAddresses sub-collection under the user's document
         const addressesRef = collection(db, 'users', user.uid, 'shippingAddresses');
-        const qAddresses = query(addressesRef);
-        unsubscribeAddressListener = onSnapshot(qAddresses, (querySnapshot) => {
-          const addresses = [];
-          querySnapshot.forEach((doc) => {
-            addresses.push({ id: doc.id, ...doc.data() });
-          });
+        unsubscribeAddressListener = onSnapshot(addressesRef, (querySnapshot) => {
+          const addresses = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
           setUserProfile((prevProfile) => ({ ...prevProfile, shippingAddresses: addresses }));
         });
 
-        // Listen to the listings sub-collection under the user's document
         const listingsRef = collection(db, 'users', user.uid, 'listings');
-        const qListings = query(listingsRef);
-        unsubscribeListingsListener = onSnapshot(qListings, (querySnapshot) => {
-          const listings = [];
-          querySnapshot.forEach((doc) => {
-            listings.push({ id: doc.id, ...doc.data() });
-          });
+        unsubscribeListingsListener = onSnapshot(listingsRef, (querySnapshot) => {
+          const listings = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
           setUserProfile((prevProfile) => ({ ...prevProfile, listings }));
         });
+
+        // Updated: Access top-level `marketplace` collection instead of `allItems`
+        const itemsRef = collection(db, 'marketplace');
+        unsubscribeItemsListener = onSnapshot(itemsRef, (querySnapshot) => {
+          const itemsData = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+          setItems(itemsData);
+        });
+
+        const usersRef = collection(db, 'users');
+        unsubscribeUsersListener = onSnapshot(usersRef, (querySnapshot) => {
+          const users = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+          setUserProfile((prevProfile) => ({ ...prevProfile, users }));
+        });
       } else {
-        // Reset user profile if the user logs out
+        // Reset state if user logs out
         setUserProfile({
-          id: '', // Reset the ID
+          id: '',
           firstName: '',
           lastName: '',
           email: '',
           username: '',
           avatar: '',
           shippingAddresses: [],
-          listings: [], // Reset listings as well
+          listings: [],
+          users: [],
         });
+        setItems([]);
 
         if (unsubscribeAddressListener) unsubscribeAddressListener();
         if (unsubscribeListingsListener) unsubscribeListingsListener();
+        if (unsubscribeItemsListener) unsubscribeItemsListener();
+        if (unsubscribeUsersListener) unsubscribeUsersListener();
       }
     });
 
@@ -69,6 +79,8 @@ export const UserProvider = ({ children }) => {
       unsubscribeAuth();
       if (unsubscribeAddressListener) unsubscribeAddressListener();
       if (unsubscribeListingsListener) unsubscribeListingsListener();
+      if (unsubscribeItemsListener) unsubscribeItemsListener();
+      if (unsubscribeUsersListener) unsubscribeUsersListener();
     };
   }, []);
 
@@ -78,10 +90,9 @@ export const UserProvider = ({ children }) => {
       const userSnapshot = await getDoc(userRef);
       if (userSnapshot.exists()) {
         const userData = userSnapshot.data();
-        console.log('Fetched User Profile:', userData);
         setUserProfile((prevProfile) => ({
           ...prevProfile,
-          id: userId, // Set the user ID
+          id: userId,
           firstName: userData.firstName || '',
           lastName: userData.lastName || '',
           email: userData.email || '',
@@ -95,7 +106,7 @@ export const UserProvider = ({ children }) => {
   };
 
   return (
-    <UserContext.Provider value={{ userProfile, setUserProfile }}>
+    <UserContext.Provider value={{ userProfile, items, setUserProfile }}>
       {children}
     </UserContext.Provider>
   );

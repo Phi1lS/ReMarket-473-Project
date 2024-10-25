@@ -1,86 +1,147 @@
-import React, { useState } from 'react';
-import { View, TextInput, FlatList, Text, TouchableOpacity, StyleSheet, Platform, StatusBar, Keyboard } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, TextInput, FlatList, TouchableOpacity, StyleSheet, Text, Image, Keyboard, Platform, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Avatar } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
-
-// Sample data for recent searches and items (replace with real data)
-const recentSearches = ['Laptop', 'Headphones', 'Books'];
-const allItems = [
-  { id: '1', name: 'Laptop', description: 'High-performance laptop', image: require('../assets/item.png') },
-  { id: '2', name: 'Headphones', description: 'Noise-cancelling headphones', image: require('../assets/item.png') },
-  { id: '3', name: 'Book', description: 'Bestselling novel', image: require('../assets/item.png') },
-];
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db, auth } from '../firebaseConfig';
+import fallbackAvatar from '../assets/avatar.png';
 
 export default function SearchPage() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [recent, setRecent] = useState(recentSearches);
-  const [results, setResults] = useState([]);
   const navigation = useNavigation();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredResults, setFilteredResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [recentSearches, setRecentSearches] = useState([]); // Store recent searches
+  const [currentUserId, setCurrentUserId] = useState(null);
 
-  // Handle search query and update results
-  const handleSearch = () => {
-    if (searchQuery.trim()) {
-      const filteredItems = allItems.filter((item) =>
-        item.name.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      setResults(filteredItems);
-      
-      // Update recent searches if it's a new search
-      if (!recent.includes(searchQuery)) {
-        setRecent([searchQuery, ...recent.slice(0, 4)]); // Limit to 5 recent searches
+  useEffect(() => {
+    if (auth.currentUser) {
+      setCurrentUserId(auth.currentUser.uid);
+    } else {
+      console.warn("No authenticated user found.");
+    }
+  }, [auth.currentUser]);
+
+  const searchUsersAndItems = async () => {
+    if (!currentUserId || !searchTerm.trim()) return;
+
+    setIsSearching(true);
+    const usersRef = collection(db, 'users');
+    const itemsRef = collection(db, 'marketplace');
+    const searchResults = [];
+
+    const userQuery = query(
+      usersRef,
+      where('firstName', '>=', searchTerm),
+      where('firstName', '<=', searchTerm + '\uf8ff')
+    );
+
+    const itemQuery = query(
+      itemsRef,
+      where('description', '>=', searchTerm),
+      where('description', '<=', searchTerm + '\uf8ff')
+    );
+
+    try {
+      const userSnapshot = await getDocs(userQuery);
+      const itemSnapshot = await getDocs(itemQuery);
+
+      userSnapshot.forEach((doc) => {
+        const userData = { id: doc.id, ...doc.data(), type: 'user' };
+        if (userData.id !== currentUserId) {
+          searchResults.push(userData);
+        }
+      });
+
+      itemSnapshot.forEach((doc) => {
+        searchResults.push({ id: doc.id, ...doc.data(), type: 'item' });
+      });
+
+      setFilteredResults(searchResults);
+
+      // Update recent searches only when a complete search is submitted
+      if (searchTerm && !recentSearches.includes(searchTerm)) {
+        setRecentSearches([searchTerm, ...recentSearches.slice(0, 4)]);
       }
-      
-      // Dismiss the keyboard and blur the input
-      Keyboard.dismiss();
+    } catch (error) {
+      console.error('Error fetching search results:', error);
+    } finally {
+      setIsSearching(false);
     }
   };
 
-  // Render recent searches
+  const handleSubmitSearch = () => {
+    Keyboard.dismiss();
+    searchUsersAndItems();
+  };
+
   const renderRecentSearches = () => (
     <View style={styles.recentSearchesContainer}>
       <Text style={styles.recentSearchesTitle}>Recent Searches</Text>
-      {recent.map((search, index) => (
-        <TouchableOpacity key={index} onPress={() => setSearchQuery(search)}>
+      {recentSearches.map((search, index) => (
+        <TouchableOpacity key={index} onPress={() => setSearchTerm(search)}>
           <Text style={styles.recentSearchText}>{search}</Text>
         </TouchableOpacity>
       ))}
     </View>
   );
 
-  // Render search results
-  const renderResults = () => (
-    <FlatList
-      data={results}
-      keyExtractor={(item) => item.id}
-      renderItem={({ item }) => (
-        <TouchableOpacity
-          style={styles.resultItem}
-          onPress={() => navigation.navigate('ItemPage', { item })}
-        >
-          <Text style={styles.resultItemName}>{item.name}</Text>
-        </TouchableOpacity>
-      )}
-    />
-  );
-
   return (
     <View style={styles.container}>
-      {/* Search Bar */}
       <View style={styles.searchBarContainer}>
         <TextInput
-          style={styles.searchBar}
-          placeholder="Search for items"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          onSubmitEditing={handleSearch} // Trigger search on enter
+          style={[styles.searchBar, isSearching && styles.searchBarActive]}
+          placeholder="Search for items or users"
+          value={searchTerm}
+          onChangeText={setSearchTerm}
+          onSubmitEditing={handleSubmitSearch} // Trigger search on Enter
+          onFocus={() => setIsSearching(true)}
+          onBlur={() => setIsSearching(false)}
         />
-        <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
+        <TouchableOpacity style={styles.searchButton} onPress={handleSubmitSearch}>
           <Ionicons name="search" size={24} color="#fff" />
         </TouchableOpacity>
       </View>
 
-      {/* Show recent searches if no query, otherwise show search results */}
-      {searchQuery.trim() === '' ? renderRecentSearches() : renderResults()}
+      {searchTerm.trim() === '' ? (
+        renderRecentSearches()
+      ) : (
+        <FlatList
+          data={filteredResults}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.resultItem}
+              onPress={() =>
+                navigation.navigate(item.type === 'user' ? 'UserProfilePage' : 'ItemPage', {
+                  userId: item.id,
+                  item,
+                })
+              }
+            >
+              {item.type === 'user' ? (
+                <Avatar.Image
+                  size={50}
+                  source={item.avatar ? { uri: item.avatar } : fallbackAvatar}
+                  style={styles.avatar}
+                />
+              ) : (
+                <Image
+                  source={{ uri: item.imageUrl }}
+                  style={styles.itemImage}
+                />
+              )}
+              <View style={styles.textContainer}>
+                <Text style={styles.userName}>
+                  {item.type === 'user' ? `${item.firstName} ${item.lastName}` : item.description}
+                </Text>
+                {item.type === 'user' && <Text style={styles.userUsername}>{item.username}</Text>}
+              </View>
+            </TouchableOpacity>
+          )}
+        />
+      )}
     </View>
   );
 }
@@ -98,16 +159,20 @@ const styles = StyleSheet.create({
   },
   searchBar: {
     flex: 1,
-    height: 40,
-    borderWidth: 1,
+    height: 45,
     borderColor: '#ddd',
-    borderRadius: 20,
+    borderWidth: 1,
+    borderRadius: 25,
     paddingLeft: 15,
     backgroundColor: '#f9f9f9',
   },
+  searchBarActive: {
+    borderColor: '#4CB0E6',
+    backgroundColor: '#f0f0f0',
+  },
   searchButton: {
-    backgroundColor: '#0070BA', // ReMarket blue for the search button
-    borderRadius: 20,
+    backgroundColor: '#0070BA',
+    borderRadius: 25,
     padding: 10,
     marginLeft: 10,
   },
@@ -126,14 +191,35 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   resultItem: {
-    padding: 15,
-    backgroundColor: '#f0f0f0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+    backgroundColor: '#fff',
     borderRadius: 10,
     marginBottom: 10,
+    paddingHorizontal: 10,
   },
-  resultItemName: {
-    fontSize: 16,
-    fontWeight: 'bold',
+  avatar: {
+    backgroundColor: '#4CB0E6',
+  },
+  itemImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 10,
+    backgroundColor: '#ddd',
+  },
+  textContainer: {
+    marginLeft: 15,
+  },
+  userName: {
+    fontSize: 18,
+    fontWeight: '500',
     color: '#333',
+  },
+  userUsername: {
+    fontSize: 14,
+    color: '#666',
   },
 });

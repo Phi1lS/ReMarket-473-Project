@@ -4,6 +4,7 @@ import { Avatar } from 'react-native-paper';
 import { Ionicons } from 'react-native-vector-icons';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
+import fallbackAvatar from '../assets/avatar.png'; // Import the fallback avatar
 
 export default function UserProfilePage({ route, navigation }) {
   const { userId } = route.params; // Get userId from route params
@@ -62,7 +63,7 @@ export default function UserProfilePage({ route, navigation }) {
         {/* Ensure user.avatar exists and is a valid URL */}
         <Avatar.Image 
           size={90} 
-          source={user.avatar ? { uri: user.avatar } : null} 
+          source={user.avatar ? { uri: user.avatar } : fallbackAvatar} 
           style={styles.avatar} 
         />
         {/* Safeguard against undefined or null values for firstName and lastName */}

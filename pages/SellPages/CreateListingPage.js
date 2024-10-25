@@ -101,16 +101,19 @@ export default function CreateListingPage() {
       };
   
       // Add listing to Firestore under the current user's listings collection
-      const docRef = await addDoc(collection(db, 'users', userProfile.id, 'listings'), listingData);
-      const listingId = docRef.id; // Get the auto-generated Firestore ID for the listing
+      const userListingRef = await addDoc(collection(db, 'users', userProfile.id, 'listings'), listingData);
+      const listingId = userListingRef.id; // Get the auto-generated Firestore ID for the listing
   
-      // Add the Firestore-generated ID to the listing
+      // Update the listing with the Firestore ID
       const listingWithId = { ...listingData, id: listingId };
   
-      // Update listings in UserContext with the newly created listing
+      // Add listing to the marketplace collection
+      await addDoc(collection(db, 'marketplace'), listingWithId);
+  
+      // Update listings in UserContext
       setUserProfile((prevProfile) => ({
         ...prevProfile,
-        listings: [...(prevProfile.listings || []), listingWithId], // Add the listing with the Firestore-generated ID
+        listings: [...(prevProfile.listings || []), listingWithId],
       }));
   
       Alert.alert('Success', 'Listing created successfully!');
