@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { UserContext } from '../../UserContext'; // Import UserContext for dynamic updates
 import { auth, db, storage } from '../../firebaseConfig'; // Firebase imports
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, doc, addDoc, setDoc } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 
 const categories = [
@@ -74,50 +74,44 @@ export default function CreateListingPage() {
   };
 
   const handleCreateListing = async () => {
-    // Defensive checks
-    if (!userProfile?.id) {
-      Alert.alert('Error', 'User profile ID is missing or undefined.');
-      return;
-    }
-  
-    if (!description || !price || !selectedCategory || !image || !quantity) {
+    if (!userProfile?.id || !description || !price || !selectedCategory || !image || !quantity) {
       Alert.alert('Error', 'Please fill out all fields, select a category, and upload an image.');
       return;
     }
   
     try {
-      const imageUrl = await uploadImage(image); // Upload the image and get the URL
+      const imageUrl = await uploadImage(image);
   
       const listingData = {
         imageUrl,
         description,
-        price: parseFloat(price), // Ensure price is saved as a number
-        quantity: parseInt(quantity, 10), // Ensure quantity is saved as a number
+        price: parseFloat(price),
+        quantity: parseInt(quantity, 10),
         category: selectedCategory,
-        sellerId: userProfile?.id, // Store the seller's ID
-        sellerName: `${userProfile?.firstName || 'Unknown'} ${userProfile?.lastName || ''}`, // Store the seller's name
-        sellerAvatar: userProfile?.avatar || 'https://example.com/default-avatar.png', // Store the seller's avatar
+        sellerId: userProfile.id,
+        sellerName: `${userProfile.firstName || 'Unknown'} ${userProfile.lastName || ''}`,
+        sellerAvatar: userProfile.avatar || 'https://example.com/default-avatar.png',
         createdAt: new Date(),
       };
   
-      // Add listing to Firestore under the current user's listings collection
+      // Add listing to the user's subcollection and get the auto-generated Firestore ID
       const userListingRef = await addDoc(collection(db, 'users', userProfile.id, 'listings'), listingData);
-      const listingId = userListingRef.id; // Get the auto-generated Firestore ID for the listing
+      const listingId = userListingRef.id;
   
-      // Update the listing with the Firestore ID
+      // Update listing data with the Firestore ID
       const listingWithId = { ...listingData, id: listingId };
   
-      // Add listing to the marketplace collection
-      await addDoc(collection(db, 'marketplace'), listingWithId);
+      // Use the same ID in the marketplace collection
+      await setDoc(doc(db, 'marketplace', listingId), listingWithId);
   
-      // Update listings in UserContext
+      // Update the user profile context
       setUserProfile((prevProfile) => ({
         ...prevProfile,
         listings: [...(prevProfile.listings || []), listingWithId],
       }));
   
       Alert.alert('Success', 'Listing created successfully!');
-      navigation.navigate('SellingScreen'); // Navigate to the selling page
+      navigation.navigate('SellingScreen');
     } catch (error) {
       console.error('Error creating listing:', error);
       Alert.alert('Error', 'Failed to create listing. Please try again.');

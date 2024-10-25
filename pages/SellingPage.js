@@ -1,53 +1,98 @@
 import React, { useContext } from 'react';
-import { View, FlatList, Text, Image, StyleSheet, TouchableOpacity, Platform, StatusBar } from 'react-native';
+import { View, FlatList, Text, Image, StyleSheet, TouchableOpacity, Alert, Platform, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { UserContext } from '../UserContext'; // Import UserContext
+import { UserContext } from '../UserContext';
+import { db } from '../firebaseConfig';
+import { getDoc, doc, deleteDoc } from 'firebase/firestore';
 
 export default function SellingPage() {
   const navigation = useNavigation();
-  const { userProfile } = useContext(UserContext); // Access UserContext
+  const { userProfile, setUserProfile } = useContext(UserContext);
 
-  // Filter to ensure no duplicates and keep unique listings only
   const uniqueListings = Array.from(new Set(userProfile.listings.map(item => item.id)))
     .map(id => userProfile.listings.find(item => item.id === id));
 
-  // Function to render each listing item
+  const handleDeleteListing = async (itemId) => {
+    try {
+      // Delete from user's listings subcollection
+      await deleteDoc(doc(db, 'users', userProfile.id, 'listings', itemId));
+  
+      // Check if the item exists in the marketplace collection before deleting
+      const marketplaceDocRef = doc(db, 'marketplace', itemId);
+      const marketplaceDocSnapshot = await getDoc(marketplaceDocRef);
+  
+      if (marketplaceDocSnapshot.exists()) {
+        // Delete from marketplace collection
+        await deleteDoc(marketplaceDocRef);
+        console.log(`Listing with ID ${itemId} successfully deleted from both listings and marketplace.`);
+      } else {
+        console.warn(`Listing with ID ${itemId} not found in the marketplace collection.`);
+      }
+  
+      // Update UserContext by filtering out the deleted listing
+      setUserProfile((prevProfile) => ({
+        ...prevProfile,
+        listings: prevProfile.listings.filter((listing) => listing.id !== itemId),
+      }));
+  
+      Alert.alert('Success', 'Listing deleted successfully.');
+    } catch (error) {
+      console.error('Error deleting listing:', error);
+      Alert.alert('Error', 'Failed to delete the listing. Please try again.');
+    }
+  };
+
+  const confirmDeleteListing = (itemId) => {
+    Alert.alert(
+      'Delete Listing',
+      'Are you sure you want to delete this listing?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => handleDeleteListing(itemId) },
+      ],
+      { cancelable: true }
+    );
+  };
+
   const renderListingItem = ({ item }) => (
-    <TouchableOpacity
-      style={styles.listingContainer}
-      onPress={() => navigation.navigate('ItemPage', { item, previousScreen: 'SellingPage' })}
-    >
-      {item.imageUrl ? (
-        <Image source={{ uri: item.imageUrl }} style={styles.listingImage} />
-      ) : (
-        <View style={styles.imagePlaceholder}>
-          <Ionicons name="image-outline" size={40} color="#888" />
-        </View>
-      )}
+    <View style={styles.listingContainer}>
+      <TouchableOpacity onPress={() => navigation.navigate('ItemPage', { item, previousScreen: 'SellingPage' })}>
+        {item.imageUrl ? (
+          <Image source={{ uri: item.imageUrl }} style={styles.listingImage} />
+        ) : (
+          <View style={styles.imagePlaceholder}>
+            <Ionicons name="image-outline" size={40} color="#888" />
+          </View>
+        )}
+      </TouchableOpacity>
+
       <View style={styles.listingDetails}>
         <Text style={styles.listingName}>{item.description || 'No Description'}</Text>
         <Text style={styles.listingPrice}>${item.price || '0.00'}</Text>
         <Text style={styles.listingQuantity}>Quantity: {item.quantity || '1'}</Text>
       </View>
-    </TouchableOpacity>
+
+      {/* Trashcan icon for deletion */}
+      <TouchableOpacity
+        style={styles.deleteButton}
+        onPress={() => confirmDeleteListing(item.id)}
+      >
+        <Ionicons name="trash-outline" size={24} color="red" />
+      </TouchableOpacity>
+    </View>
   );
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <Text style={styles.headerText}>Your Listings</Text>
-
-      {/* FlatList to display listings */}
       <FlatList
-        data={uniqueListings} // Use unique listings
-        keyExtractor={(item) => item.id} // Ensure unique key for each item
+        data={uniqueListings}
+        keyExtractor={(item) => item.id}
         renderItem={renderListingItem}
         contentContainerStyle={styles.listingsContainer}
-        ListEmptyComponent={<Text style={styles.emptyMessage}>No listings available.</Text>} // Show when no listings
+        ListEmptyComponent={<Text style={styles.emptyMessage}>No listings available.</Text>}
       />
-
-      {/* Floating button to create a new listing */}
       <TouchableOpacity style={styles.floatingButton} onPress={() => navigation.navigate('CreateListingPage')}>
         <Ionicons name="add-circle-outline" size={60} color="#0070BA" />
       </TouchableOpacity>
@@ -60,27 +105,28 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
     paddingHorizontal: 10,
-    paddingTop: Platform.OS === 'ios' ? 60 : StatusBar.currentHeight + 15, // Adjust for iOS top margin
+    paddingTop: Platform.OS === 'ios' ? 60 : StatusBar.currentHeight + 15,
   },
   headerText: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 20,
-    textAlign: 'center', // Centered header
+    textAlign: 'center',
   },
   listingsContainer: {
-    paddingBottom: 80, // Add padding to accommodate floating button
+    paddingBottom: 80,
   },
   listingContainer: {
     flexDirection: 'row',
-    backgroundColor: '#f1f4f8', // Updated background color
+    backgroundColor: '#f1f4f8',
     borderRadius: 10,
     marginBottom: 15,
     padding: 10,
     borderWidth: 1,
-    borderColor: '#0070BA', // Updated border color to match theme
+    borderColor: '#0070BA',
     elevation: 2,
+    position: 'relative', // For positioning the delete button
   },
   listingImage: {
     width: 80,
@@ -95,21 +141,22 @@ const styles = StyleSheet.create({
   listingName: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#0070BA', // Updated font color for the listing name
-  },
-  listingDescription: {
-    fontSize: 14,
-    color: '#555',
+    color: '#0070BA',
   },
   listingPrice: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#0070BA', // Updated price color to match theme
+    color: '#0070BA',
   },
   floatingButton: {
     position: 'absolute',
     right: 20,
     bottom: 20,
     zIndex: 1,
+  },
+  deleteButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
   },
 });
