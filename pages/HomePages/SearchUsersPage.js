@@ -4,6 +4,7 @@ import { Avatar } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { db, auth } from '../../firebaseConfig'; // Import Firebase Auth and Firestore
 import { collection, query, where, getDocs } from 'firebase/firestore'; // Firestore functions
+import fallbackAvatar from '../../assets/avatar.png';
 
 export default function SearchUsersPage() {
   const navigation = useNavigation();
@@ -93,7 +94,7 @@ export default function SearchUsersPage() {
           >
             <Avatar.Image
               size={50}
-              source={{ uri: item.avatar || 'https://example.com/default-avatar.png' }}
+              source={item.avatar ? { uri: item.avatar } : fallbackAvatar}
               style={styles.avatar}
             />
             <View>

@@ -10,22 +10,21 @@ const categories = [
   'Electronics', 'Fashion', 'Home', 'Toys', 'Sports', 'Motors', 'Beauty', 'Books', 'Music', 'Collectibles'
 ];
 
+
 export default function ShopPage() {
   const navigation = useNavigation();
-  const { items } = useContext(UserContext); // Access items from UserContext
+  const { items } = useContext(UserContext);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredItems, setFilteredItems] = useState(items); // Initialize with all items
+  const [filteredItems, setFilteredItems] = useState(items);
 
-  // Update filteredItems whenever items change in context
   useEffect(() => {
     setFilteredItems(items);
   }, [items]);
 
-  // Function to handle search input
   const handleSearch = (query) => {
     setSearchQuery(query);
     if (query.trim() === '') {
-      setFilteredItems(items); // Reset to all items if search is empty
+      setFilteredItems(items);
     } else {
       const filtered = items.filter((item) =>
         item.description.toLowerCase().includes(query.toLowerCase())
@@ -34,7 +33,6 @@ export default function ShopPage() {
     }
   };
 
-  // Reusable component for rendering rows of items
   const renderItemsRow = (title, data) => (
     <View style={styles.itemSection}>
       <Text style={styles.sectionTitle}>{title}</Text>
@@ -94,7 +92,11 @@ export default function ShopPage() {
         <Text style={styles.categoryTitle}>Search by Category</Text>
         <View style={styles.categoryContainer}>
           {categories.map((category) => (
-            <TouchableOpacity key={category} style={styles.categoryButton}>
+            <TouchableOpacity
+              key={category}
+              style={styles.categoryButton}
+              onPress={() => navigation.navigate('CategoryPage', { category })} // Navigate to CategoryPage
+            >
               <Text style={styles.categoryText}>{category}</Text>
             </TouchableOpacity>
           ))}
