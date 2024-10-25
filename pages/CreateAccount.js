@@ -15,6 +15,17 @@ export default function CreateAccountScreen({ navigation }) {
   const scheme = useColorScheme();  // Detect dark mode
   const isDarkMode = scheme === 'dark';  // Determine if dark mode is active
 
+  // Ensure username starts with "@"
+  const handleUsernameChange = (text) => {
+    if (text === '' || text === '@') {
+      setUsername(''); // Remove the "@" if field is empty
+    } else if (!text.startsWith('@')) {
+      setUsername('@' + text); // Automatically add "@" if not already there
+    } else {
+      setUsername(text); // Keep the username with "@"
+    }
+  };
+
   // Function to handle account creation
   const handleCreateAccount = async () => {
     if (password !== confirmPassword) {
@@ -69,8 +80,9 @@ export default function CreateAccountScreen({ navigation }) {
         style={isDarkMode ? styles.darkInput : styles.input}
         placeholder="Username"
         value={username}
-        onChangeText={setUsername}
+        onChangeText={handleUsernameChange} // Use the new function to ensure '@' is added
         placeholderTextColor={isDarkMode ? '#AAAAAA' : '#888'}
+        autoCapitalize="none" // Prevent automatic capitalization
       />
 
       {/* Email Input */}

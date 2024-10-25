@@ -38,7 +38,7 @@ export default function ProfilePage({ navigation }) {
           style={styles.avatar}
         />
         <Text style={styles.name}>{`${userProfile.firstName} ${userProfile.lastName}`}</Text>
-        <Text style={styles.username}>{`@${userProfile.username}`}</Text>
+        <Text style={styles.username}>{`${userProfile.username}`}</Text>
       </View>
 
       {/* Tab Control: Wallet vs Purchases */}
