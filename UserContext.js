@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect } from 'react';
 import { auth, db } from './firebaseConfig';
-import { doc, getDoc, onSnapshot, collection, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, collection, updateDoc } from 'firebase/firestore';
 
 export const UserContext = createContext();
 
@@ -113,7 +113,8 @@ export const UserProvider = ({ children }) => {
       const userRef = doc(db, 'users', userId);
       const userSnapshot = await getDoc(userRef);
       if (userSnapshot.exists()) {
-        setCart(userSnapshot.data().cart || []);
+        const userCart = userSnapshot.data().cart || [];
+        setCart(userCart);
       }
     } catch (error) {
       console.error('Error loading cart:', error);
@@ -124,29 +125,23 @@ export const UserProvider = ({ children }) => {
   const addToCart = async (item) => {
     try {
       const existingItem = cart.find(cartItem => cartItem.itemId === item.id);
-      const updatedCart = existingItem
-        ? cart.map(cartItem =>
-            cartItem.itemId === item.id
-              ? { ...cartItem, quantity: cartItem.quantity + 1 }
-              : cartItem
-          )
-        : [...cart, { itemId: item.id, quantity: 1 }];
+      let updatedCart;
+
+      if (existingItem) {
+        updatedCart = cart.map(cartItem =>
+          cartItem.itemId === item.id
+            ? { ...cartItem, quantity: cartItem.quantity + 1 }
+            : cartItem
+        );
+      } else {
+        updatedCart = [...cart, { itemId: item.id, quantity: 1 }];
+      }
 
       setCart(updatedCart);
 
-      // Update Firestore cart
+      // Save updated cart as a whole to Firestore
       const userRef = doc(db, 'users', userProfile.id);
-      if (existingItem) {
-        await updateDoc(userRef, {
-          cart: updatedCart.map(cartItem =>
-            cartItem.itemId === item.id ? { itemId: cartItem.itemId, quantity: cartItem.quantity } : cartItem
-          ),
-        });
-      } else {
-        await updateDoc(userRef, {
-          cart: arrayUnion({ itemId: item.id, quantity: 1 }),
-        });
-      }
+      await updateDoc(userRef, { cart: updatedCart });
     } catch (error) {
       console.error('Error adding item to cart:', error);
     }
@@ -158,11 +153,9 @@ export const UserProvider = ({ children }) => {
       const updatedCart = cart.filter((cartItem) => cartItem.itemId !== itemId);
       setCart(updatedCart);
 
-      // Update Firestore to remove the item from the cart array
+      // Update Firestore with the modified cart
       const userRef = doc(db, 'users', userProfile.id);
-      await updateDoc(userRef, {
-        cart: arrayRemove({ itemId }),
-      });
+      await updateDoc(userRef, { cart: updatedCart });
     } catch (error) {
       console.error('Error removing item from cart:', error);
     }

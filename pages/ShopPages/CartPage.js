@@ -21,7 +21,7 @@ export default function CartPage() {
     <View style={styles.cartItem}>
       <Image source={{ uri: item.imageUrl }} style={styles.itemImage} />
       <View style={styles.itemDetails}>
-        <Text style={styles.itemName}>{item.name}</Text>
+        <Text style={styles.itemName}>{item.description}</Text>
         <Text style={styles.itemPrice}>${item.price.toFixed(2)} x {item.quantity}</Text>
       </View>
       <TouchableOpacity style={styles.removeButton} onPress={() => removeFromCart(item.id)}>
