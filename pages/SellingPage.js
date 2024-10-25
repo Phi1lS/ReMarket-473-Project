@@ -1,5 +1,5 @@
 import React, { useContext } from 'react';
-import { View, FlatList, Text, Image, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { View, FlatList, Text, Image, StyleSheet, TouchableOpacity, Platform, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { UserContext } from '../UserContext'; // Import UserContext
