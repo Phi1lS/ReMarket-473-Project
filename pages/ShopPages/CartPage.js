@@ -1,28 +1,30 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { View, Text, FlatList, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { FAB } from 'react-native-paper';  // Floating Action Button for checkout
-
-// Sample cart items
-const cartItems = [
-  { id: '1', name: 'Item 1', price: 29.99, image: require('../../assets/item.png') },
-  { id: '2', name: 'Item 2', price: 49.99, image: require('../../assets/item.png') },
-  { id: '3', name: 'Item 3', price: 19.99, image: require('../../assets/item.png') },
-];
+import { UserContext } from '../../UserContext';
 
 export default function CartPage() {
-  // Calculate total price
-  const totalPrice = cartItems.reduce((total, item) => total + item.price, 0);
+  const { cart, items, removeFromCart } = useContext(UserContext);
 
-  // Reusable component for rendering cart items
+  // Retrieve item details for each cart item
+  const cartItemsWithDetails = cart.map((cartItem) => {
+    const itemDetails = items.find((item) => item.id === cartItem.itemId);
+    return itemDetails ? { ...itemDetails, quantity: cartItem.quantity } : null;
+  }).filter(Boolean);
+
+  // Calculate total price
+  const totalPrice = cartItemsWithDetails.reduce((total, item) => total + item.price * item.quantity, 0);
+
+  // Render each cart item with remove button
   const renderCartItem = ({ item }) => (
     <View style={styles.cartItem}>
-      <Image source={item.image} style={styles.itemImage} />
+      <Image source={{ uri: item.imageUrl }} style={styles.itemImage} />
       <View style={styles.itemDetails}>
         <Text style={styles.itemName}>{item.name}</Text>
-        <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
+        <Text style={styles.itemPrice}>${item.price.toFixed(2)} x {item.quantity}</Text>
       </View>
-      <TouchableOpacity style={styles.removeButton}>
+      <TouchableOpacity style={styles.removeButton} onPress={() => removeFromCart(item.id)}>
         <Ionicons name="trash-outline" size={24} color="#FF6347" />
       </TouchableOpacity>
     </View>
@@ -32,7 +34,7 @@ export default function CartPage() {
     <View style={styles.container}>
       {/* Cart Items */}
       <FlatList
-        data={cartItems}
+        data={cartItemsWithDetails}
         renderItem={renderCartItem}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.cartList}

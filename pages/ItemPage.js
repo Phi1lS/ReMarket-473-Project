@@ -1,15 +1,29 @@
 import React, { useContext } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from 'react-native-paper';
 import { UserContext } from '../UserContext'; // Import UserContext
 
 export default function ItemPage({ route }) {
   const { item } = route.params;
-  const { userProfile } = useContext(UserContext); // Use userProfile.id
+  const { userProfile, addToCart, removeFromCart, cart } = useContext(UserContext); // Access cart and addToCart function
 
   // Check if the current user is the seller of this item
-  const isSeller = item.sellerId === userProfile.id; // Compare the listing seller with the current user
+  const isSeller = item.sellerId === userProfile.id;
+
+  // Find if item already exists in cart and get its quantity
+  const cartItem = cart.find(cartItem => cartItem.itemId === item.id);
+  const cartItemQuantity = cartItem ? cartItem.quantity : 0;
+
+  // Function to handle adding item to cart with quantity check
+  const handleAddToCart = () => {
+    if (cartItemQuantity < item.quantity) {
+      addToCart(item);
+      Alert.alert("Success", "Item added to cart.");
+    } else {
+      Alert.alert("Unavailable", "You've added the maximum available quantity of this item to your cart.");
+    }
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.scrollContainer}>
@@ -37,7 +51,7 @@ export default function ItemPage({ route }) {
 
         {/* Add to Cart Button */}
         {!isSeller && (
-          <TouchableOpacity style={styles.addToCartButton}>
+          <TouchableOpacity style={styles.addToCartButton} onPress={handleAddToCart}>
             <Ionicons name="cart-outline" size={24} color="#fff" />
             <Text style={styles.addToCartText}>Add to Cart</Text>
           </TouchableOpacity>

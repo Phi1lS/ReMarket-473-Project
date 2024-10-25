@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect } from 'react';
 import { auth, db } from './firebaseConfig';
-import { doc, getDoc, onSnapshot, collection } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, collection, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 
 export const UserContext = createContext();
 
@@ -16,7 +16,8 @@ export const UserProvider = ({ children }) => {
     listings: [],
     users: [],
   });
-  const [items, setItems] = useState([]); // State for all items in the marketplace
+  const [items, setItems] = useState([]); // All items in the marketplace
+  const [cart, setCart] = useState([]); // Cart state
 
   useEffect(() => {
     let unsubscribeProfileListener;
@@ -28,6 +29,7 @@ export const UserProvider = ({ children }) => {
     const unsubscribeAuth = auth.onAuthStateChanged((user) => {
       if (user) {
         fetchUserProfile(user.uid);
+        loadCart(user.uid); // Load the user's cart
 
         const addressesRef = collection(db, 'users', user.uid, 'shippingAddresses');
         unsubscribeAddressListener = onSnapshot(addressesRef, (querySnapshot) => {
@@ -41,7 +43,7 @@ export const UserProvider = ({ children }) => {
           setUserProfile((prevProfile) => ({ ...prevProfile, listings }));
         });
 
-        // Updated: Access top-level `marketplace` collection instead of `allItems`
+        // Access top-level `marketplace` collection
         const itemsRef = collection(db, 'marketplace');
         unsubscribeItemsListener = onSnapshot(itemsRef, (querySnapshot) => {
           const itemsData = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
@@ -54,7 +56,6 @@ export const UserProvider = ({ children }) => {
           setUserProfile((prevProfile) => ({ ...prevProfile, users }));
         });
       } else {
-        // Reset state if user logs out
         setUserProfile({
           id: '',
           firstName: '',
@@ -67,6 +68,7 @@ export const UserProvider = ({ children }) => {
           users: [],
         });
         setItems([]);
+        setCart([]); // Reset cart
 
         if (unsubscribeAddressListener) unsubscribeAddressListener();
         if (unsubscribeListingsListener) unsubscribeListingsListener();
@@ -105,8 +107,69 @@ export const UserProvider = ({ children }) => {
     }
   };
 
+  // Load cart items from Firestore
+  const loadCart = async (userId) => {
+    try {
+      const userRef = doc(db, 'users', userId);
+      const userSnapshot = await getDoc(userRef);
+      if (userSnapshot.exists()) {
+        setCart(userSnapshot.data().cart || []);
+      }
+    } catch (error) {
+      console.error('Error loading cart:', error);
+    }
+  };
+
+  // Function to add an item to the cart
+  const addToCart = async (item) => {
+    try {
+      const existingItem = cart.find(cartItem => cartItem.itemId === item.id);
+      const updatedCart = existingItem
+        ? cart.map(cartItem =>
+            cartItem.itemId === item.id
+              ? { ...cartItem, quantity: cartItem.quantity + 1 }
+              : cartItem
+          )
+        : [...cart, { itemId: item.id, quantity: 1 }];
+
+      setCart(updatedCart);
+
+      // Update Firestore cart
+      const userRef = doc(db, 'users', userProfile.id);
+      if (existingItem) {
+        await updateDoc(userRef, {
+          cart: updatedCart.map(cartItem =>
+            cartItem.itemId === item.id ? { itemId: cartItem.itemId, quantity: cartItem.quantity } : cartItem
+          ),
+        });
+      } else {
+        await updateDoc(userRef, {
+          cart: arrayUnion({ itemId: item.id, quantity: 1 }),
+        });
+      }
+    } catch (error) {
+      console.error('Error adding item to cart:', error);
+    }
+  };
+
+  // Function to remove item from cart
+  const removeFromCart = async (itemId) => {
+    try {
+      const updatedCart = cart.filter((cartItem) => cartItem.itemId !== itemId);
+      setCart(updatedCart);
+
+      // Update Firestore to remove the item from the cart array
+      const userRef = doc(db, 'users', userProfile.id);
+      await updateDoc(userRef, {
+        cart: arrayRemove({ itemId }),
+      });
+    } catch (error) {
+      console.error('Error removing item from cart:', error);
+    }
+  };
+
   return (
-    <UserContext.Provider value={{ userProfile, items, setUserProfile }}>
+    <UserContext.Provider value={{ userProfile, items, cart, setUserProfile, addToCart, removeFromCart }}>
       {children}
     </UserContext.Provider>
   );
