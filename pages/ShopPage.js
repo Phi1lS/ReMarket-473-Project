@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { View, FlatList, StyleSheet, TouchableOpacity, TextInput, ScrollView, Text, Image, Platform, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
+import { UserContext } from '../UserContext'; // Import UserContext
 
 const categories = [
   'Electronics', 'Fashion', 'Home', 'Toys', 'Sports', 'Motors', 'Beauty', 'Books', 'Music', 'Collectibles'
@@ -11,33 +12,22 @@ const categories = [
 
 export default function ShopPage() {
   const navigation = useNavigation();
+  const { items } = useContext(UserContext); // Access items from UserContext
   const [searchQuery, setSearchQuery] = useState('');
-  const [allItems, setAllItems] = useState([]);
-  const [filteredItems, setFilteredItems] = useState([]);
+  const [filteredItems, setFilteredItems] = useState(items); // Initialize with all items
 
+  // Update filteredItems whenever items change in context
   useEffect(() => {
-    const fetchItems = async () => {
-      try {
-        const itemsRef = collection(db, 'marketplace');
-        const snapshot = await getDocs(itemsRef);
-        const itemsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setAllItems(itemsData);
-        setFilteredItems(itemsData); // Initialize filteredItems with all items
-      } catch (error) {
-        console.error('Error fetching items from marketplace:', error);
-      }
-    };
-
-    fetchItems();
-  }, []);
+    setFilteredItems(items);
+  }, [items]);
 
   // Function to handle search input
   const handleSearch = (query) => {
     setSearchQuery(query);
     if (query.trim() === '') {
-      setFilteredItems(allItems); // Reset to all items if search is empty
+      setFilteredItems(items); // Reset to all items if search is empty
     } else {
-      const filtered = allItems.filter((item) =>
+      const filtered = items.filter((item) =>
         item.description.toLowerCase().includes(query.toLowerCase())
       );
       setFilteredItems(filtered);
@@ -68,7 +58,6 @@ export default function ShopPage() {
 
   return (
     <View style={styles.container}>
-      {/* Add Logo at the top */}
       <Image 
         source={require('../assets/ReMarketlogo.png')} 
         style={styles.logo} 
@@ -85,21 +74,20 @@ export default function ShopPage() {
         />
         <TouchableOpacity
           style={styles.cartIcon}
-          onPress={() => navigation.navigate('CartPage', { cart: allItems })}
+          onPress={() => navigation.navigate('CartPage', { cart: items })}
         >
           <Ionicons name="cart-outline" size={28} color="#0070BA" />
         </TouchableOpacity>
       </View>
 
       <ScrollView>
-        {/* Display filtered search results if a search query is present */}
         {searchQuery ? (
           renderItemsRow('Search Results', filteredItems)
         ) : (
           <>
-            {renderItemsRow('Recently Posted', allItems)}
-            {renderItemsRow('Viewed by Friends', allItems)}
-            {renderItemsRow('Recommended for You', allItems)}
+            {renderItemsRow('Recently Posted', items)}
+            {renderItemsRow('Viewed by Friends', items)}
+            {renderItemsRow('Recommended for You', items)}
           </>
         )}
 
