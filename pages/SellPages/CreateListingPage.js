@@ -13,11 +13,11 @@ const categories = [
 ];
 
 export default function CreateListingPage() {
-  const { userProfile, setUserProfile } = useContext(UserContext); // Access UserContext
+  const { userProfile, setUserProfile } = useContext(UserContext); // Access user profile from UserContext
   const [image, setImage] = useState(null);
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
-  const [quantity, setQuantity] = useState('');
+  const [quantity, setQuantity] = useState(''); // Add quantity field
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [uploading, setUploading] = useState(false);
   const navigation = useNavigation();
@@ -42,10 +42,15 @@ export default function CreateListingPage() {
   };
 
   const uploadImage = async (uri) => {
+    if (!uri) {
+      throw new Error('Image URI is undefined');
+    }
+
     setUploading(true);
     const response = await fetch(uri);
     const blob = await response.blob();
-    const imageRef = ref(storage, `listings/${auth.currentUser.uid}/${Date.now()}.jpg`);
+    const imageRef = ref(storage, `listings/${userProfile?.id || 'unknown_user'}/${Date.now()}.jpg`);
+
     const uploadTask = uploadBytesResumable(imageRef, blob);
 
     return new Promise((resolve, reject) => {
@@ -55,13 +60,12 @@ export default function CreateListingPage() {
           console.log(`Upload progress: ${snapshot.bytesTransferred}/${snapshot.totalBytes}`);
         },
         (error) => {
-          console.error('Error during image upload:', error);
+          console.error('Upload failed:', error);
           setUploading(false);
           reject(error);
         },
         async () => {
           const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-          console.log('Image uploaded, download URL:', downloadURL);
           setUploading(false);
           resolve(downloadURL);
         }
@@ -70,37 +74,50 @@ export default function CreateListingPage() {
   };
 
   const handleCreateListing = async () => {
-    if (!description || !price || !quantity || !selectedCategory || !image) {
-      Alert.alert('Error', 'Please fill out all fields and upload an image.');
+    // Defensive checks
+    if (!userProfile?.id) {
+      Alert.alert('Error', 'User profile ID is missing or undefined.');
       return;
     }
-
+  
+    if (!description || !price || !selectedCategory || !image || !quantity) {
+      Alert.alert('Error', 'Please fill out all fields, select a category, and upload an image.');
+      return;
+    }
+  
     try {
-      const imageUrl = await uploadImage(image);
-
+      const imageUrl = await uploadImage(image); // Upload the image and get the URL
+  
       const listingData = {
         imageUrl,
         description,
-        price,
-        quantity,
+        price: parseFloat(price), // Ensure price is saved as a number
+        quantity: parseInt(quantity, 10), // Ensure quantity is saved as a number
         category: selectedCategory,
+        sellerId: userProfile?.id, // Store the seller's ID
+        sellerName: `${userProfile?.firstName || 'Unknown'} ${userProfile?.lastName || ''}`, // Store the seller's name
+        sellerAvatar: userProfile?.avatar || 'https://example.com/default-avatar.png', // Store the seller's avatar
         createdAt: new Date(),
       };
-
+  
       // Add listing to Firestore under the current user's listings collection
-      const listingRef = await addDoc(collection(db, 'users', auth.currentUser.uid, 'listings'), listingData);
-
-      // Update listings in UserContext dynamically
+      const docRef = await addDoc(collection(db, 'users', userProfile.id, 'listings'), listingData);
+      const listingId = docRef.id; // Get the auto-generated Firestore ID for the listing
+  
+      // Add the Firestore-generated ID to the listing
+      const listingWithId = { ...listingData, id: listingId };
+  
+      // Update listings in UserContext with the newly created listing
       setUserProfile((prevProfile) => ({
         ...prevProfile,
-        listings: [...(prevProfile.listings || []), { id: listingRef.id, ...listingData }],
+        listings: [...(prevProfile.listings || []), listingWithId], // Add the listing with the Firestore-generated ID
       }));
-
+  
       Alert.alert('Success', 'Listing created successfully!');
-      navigation.navigate('SellingScreen');
+      navigation.navigate('SellingScreen'); // Navigate to the selling page
     } catch (error) {
       console.error('Error creating listing:', error);
-      Alert.alert('Error', `Failed to create listing. ${error.message}`);
+      Alert.alert('Error', 'Failed to create listing. Please try again.');
     }
   };
 
@@ -129,20 +146,22 @@ export default function CreateListingPage() {
             placeholderTextColor="#888"
           />
 
+          {/* Item Price */}
           <TextInput
             style={styles.input}
             placeholder="Price"
-            value={price ? `$${price}` : ''} // Display the $ symbol only if there's a value
-            onChangeText={(text) => setPrice(text.replace(/[^0-9.]/g, ''))} // Allow only numbers and decimal points
+            value={price ? `$${price}` : ''}  // Display the $ symbol only if there's a value
+            onChangeText={(text) => setPrice(text.replace(/[^0-9.]/g, ''))}  // Allow only numbers and decimal points
             keyboardType="numeric"
             placeholderTextColor="#888"
           />
 
+          {/* Quantity Input */}
           <TextInput
             style={styles.input}
             placeholder="Quantity"
             value={quantity}
-            onChangeText={(text) => setQuantity(text.replace(/[^0-9]/g, ''))} // Allow only numbers
+            onChangeText={setQuantity}
             keyboardType="numeric"
             placeholderTextColor="#888"
           />
@@ -177,9 +196,6 @@ export default function CreateListingPage() {
 }
 
 const styles = StyleSheet.create({
-  scrollContainer: {
-    paddingBottom: 20,
-  },
   container: {
     flex: 1,
     backgroundColor: '#fff',

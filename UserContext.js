@@ -6,6 +6,7 @@ export const UserContext = createContext();
 
 export const UserProvider = ({ children }) => {
   const [userProfile, setUserProfile] = useState({
+    id: '', // Store the user ID
     firstName: '',
     lastName: '',
     email: '',
@@ -49,6 +50,7 @@ export const UserProvider = ({ children }) => {
       } else {
         // Reset user profile if the user logs out
         setUserProfile({
+          id: '', // Reset the ID
           firstName: '',
           lastName: '',
           email: '',
@@ -76,9 +78,10 @@ export const UserProvider = ({ children }) => {
       const userSnapshot = await getDoc(userRef);
       if (userSnapshot.exists()) {
         const userData = userSnapshot.data();
-        //console.log('Fetched User Profile:', userData);
+        console.log('Fetched User Profile:', userData);
         setUserProfile((prevProfile) => ({
           ...prevProfile,
+          id: userId, // Set the user ID
           firstName: userData.firstName || '',
           lastName: userData.lastName || '',
           email: userData.email || '',

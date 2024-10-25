@@ -1,16 +1,21 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from 'react-native-paper';
+import { UserContext } from '../UserContext'; // Import UserContext
 
 export default function ItemPage({ route }) {
-  const { item } = route.params; // Assume 'category' is part of item data
+  const { item } = route.params;
+  const { userProfile } = useContext(UserContext); // Use userProfile.id
+
+  // Check if the current user is the seller of this item
+  const isSeller = item.sellerId === userProfile.id; // Compare the listing seller with the current user
 
   return (
     <ScrollView contentContainerStyle={styles.scrollContainer}>
       <View style={styles.container}>
         {/* Item Image */}
-        <Image source={item.image} style={styles.itemImage} />
+        <Image source={{ uri: item.imageUrl }} style={styles.itemImage} />
 
         {/* Item Details */}
         <View style={styles.detailsContainer}>
@@ -23,18 +28,20 @@ export default function ItemPage({ route }) {
         <View style={styles.sellerContainer}>
           <Text style={styles.sellerTitle}>Seller Information</Text>
           <View style={styles.sellerInfo}>
-            <Avatar.Image size={50} source={require('../assets/avatar.png')} style={styles.avatar} />
+            <Avatar.Image size={50} source={{ uri: userProfile.avatar }} style={styles.avatar} />
             <View style={styles.sellerDetails}>
-              <Text style={styles.sellerName}>John Doe</Text>
+              <Text style={styles.sellerName}>{`${userProfile.firstName} ${userProfile.lastName}`}</Text>
             </View>
           </View>
         </View>
 
         {/* Add to Cart Button */}
-        <TouchableOpacity style={styles.addToCartButton}>
-          <Ionicons name="cart-outline" size={24} color="#fff" />
-          <Text style={styles.addToCartText}>Add to Cart</Text>
-        </TouchableOpacity>
+        {!isSeller && (
+          <TouchableOpacity style={styles.addToCartButton}>
+            <Ionicons name="cart-outline" size={24} color="#fff" />
+            <Text style={styles.addToCartText}>Add to Cart</Text>
+          </TouchableOpacity>
+        )}
 
         {/* Item Category */}
         <View style={styles.categoryContainer}>
@@ -48,7 +55,7 @@ export default function ItemPage({ route }) {
 
 const styles = StyleSheet.create({
   scrollContainer: {
-    paddingBottom: 20,
+
   },
   container: {
     flex: 1,
@@ -75,6 +82,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     color: '#4CB0E6', // Updated to the new blue shade
+    marginTop: -20,
     marginBottom: 15,
   },
   itemDescription: {
@@ -82,7 +90,7 @@ const styles = StyleSheet.create({
     color: '#555',
   },
   sellerContainer: {
-    marginTop: 30,
+    marginTop: 10,
   },
   sellerTitle: {
     fontSize: 18,
@@ -117,7 +125,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#4CB0E6', // Updated to blue shade
     padding: 15,
     borderRadius: 10,
-    marginTop: 30,
+    marginTop: 20,
   },
   addToCartText: {
     color: '#fff',

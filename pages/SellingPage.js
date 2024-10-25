@@ -8,6 +8,10 @@ export default function SellingPage() {
   const navigation = useNavigation();
   const { userProfile } = useContext(UserContext); // Access UserContext
 
+  // Filter to ensure no duplicates and keep unique listings only
+  const uniqueListings = Array.from(new Set(userProfile.listings.map(item => item.id)))
+    .map(id => userProfile.listings.find(item => item.id === id));
+
   // Function to render each listing item
   const renderListingItem = ({ item }) => (
     <TouchableOpacity
@@ -36,8 +40,8 @@ export default function SellingPage() {
 
       {/* FlatList to display listings */}
       <FlatList
-        data={userProfile.listings} // Use listings from UserContext
-        keyExtractor={(item) => item.id}
+        data={uniqueListings} // Use unique listings
+        keyExtractor={(item) => item.id} // Ensure unique key for each item
         renderItem={renderListingItem}
         contentContainerStyle={styles.listingsContainer}
         ListEmptyComponent={<Text style={styles.emptyMessage}>No listings available.</Text>} // Show when no listings
