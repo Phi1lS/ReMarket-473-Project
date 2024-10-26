@@ -138,31 +138,43 @@ export const UserProvider = ({ children }) => {
 
   const addPurchase = async (purchaseItem) => {
     try {
-      // Ensure you get the item details from the marketplace, including the image URL
       const marketplaceRef = doc(db, 'marketplace', purchaseItem.itemId);
       const marketplaceDoc = await getDoc(marketplaceRef);
   
       if (marketplaceDoc.exists()) {
         const marketplaceData = marketplaceDoc.data();
   
-        // Add the purchase to the user's 'purchases' subcollection, including the image URL from the marketplace
+        // Add the purchase to the buyer's 'purchases' subcollection
         const purchaseRef = collection(db, 'users', userProfile.id, 'purchases');
         await addDoc(purchaseRef, {
           itemId: purchaseItem.itemId,
           itemName: purchaseItem.itemName,
           price: purchaseItem.price,
           quantity: purchaseItem.quantity,
-          message: purchaseItem.message, // Ensure the message gets saved
-          imageUrl: marketplaceData.imageUrl || '', // Add the imageUrl from the marketplace document
-          timestamp: serverTimestamp(), // Use the timestamp directly
+          message: purchaseItem.message,
+          imageUrl: marketplaceData.imageUrl || '',
+          timestamp: serverTimestamp(),
+          userName: `${userProfile.firstName} ${userProfile.lastName}`, // Buyer name
         });
   
-        console.log("Purchase added with image:", purchaseItem);
+        // Add a notification to the seller's 'notifications' subcollection
+        const sellerId = marketplaceData.sellerId; // Assuming the seller ID is stored in marketplace data
+        const sellerNotificationsRef = collection(db, 'users', sellerId, 'notifications');
+        await addDoc(sellerNotificationsRef, {
+          buyerName: `${userProfile.firstName} ${userProfile.lastName}`,
+          itemId: purchaseItem.itemId,
+          itemName: purchaseItem.itemName,
+          quantity: purchaseItem.quantity,
+          timestamp: serverTimestamp(),
+          message: purchaseItem.message || '', // Optional message from buyer
+        });
+  
+        console.log("Purchase added with notification to the seller:", purchaseItem);
       } else {
         console.error("Marketplace item not found:", purchaseItem.itemId);
       }
     } catch (error) {
-      console.error('Error adding purchase with image:', error);
+      console.error('Error adding purchase and notification:', error);
     }
   };
 
