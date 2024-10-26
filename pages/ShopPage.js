@@ -33,6 +33,15 @@ export default function ShopPage() {
     }
   };
 
+  const sortItemsByDate = (itemsArray) => {
+    return itemsArray.slice().sort((a, b) => {
+      if (a.createdAt && b.createdAt) {
+        return b.createdAt.seconds - a.createdAt.seconds;
+      }
+      return 0; // Return 0 if the timestamp is not available
+    });
+  };
+
   const renderItemsRow = (title, data) => (
     <View style={styles.itemSection}>
       <Text style={styles.sectionTitle}>{title}</Text>
@@ -46,7 +55,8 @@ export default function ShopPage() {
             onPress={() => navigation.navigate('ItemPage', { item })}
           >
             <Image source={{ uri: item.imageUrl }} style={styles.itemImage} />
-            <Text style={styles.itemName}>{item.description}</Text> 
+            {/* Wrap item description inside Text component */}
+            <Text style={styles.itemName}>{item.description}</Text>
           </TouchableOpacity>
         )}
         showsHorizontalScrollIndicator={false}
@@ -83,9 +93,9 @@ export default function ShopPage() {
           renderItemsRow('Search Results', filteredItems)
         ) : (
           <>
-            {renderItemsRow('Recently Posted', items)}
-            {renderItemsRow('Viewed by Friends', items)}
-            {renderItemsRow('Recommended for You', items)}
+            {renderItemsRow('Recently Posted', sortItemsByDate(items))}
+            {renderItemsRow('Viewed by Friends', sortItemsByDate(items))}
+            {renderItemsRow('Recommended for You', sortItemsByDate(items))}
           </>
         )}
 
@@ -97,6 +107,7 @@ export default function ShopPage() {
               style={styles.categoryButton}
               onPress={() => navigation.navigate('CategoryPage', { category })} // Navigate to CategoryPage
             >
+              {/* Wrap category name inside Text component */}
               <Text style={styles.categoryText}>{category}</Text>
             </TouchableOpacity>
           ))}
