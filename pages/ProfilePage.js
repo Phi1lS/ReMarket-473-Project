@@ -1,5 +1,5 @@
 import React, { useContext, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Image, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Platform } from 'react-native';
 import { Ionicons } from 'react-native-vector-icons';
 import { Avatar } from 'react-native-paper';
 import { UserContext } from '../UserContext';
@@ -14,8 +14,8 @@ export default function ProfilePage({ navigation }) {
     setSelectedTab(tab);
   };
 
-  const renderPurchaseItem = ({ item }) => (
-    <View style={styles.purchaseItemContainer}>
+  const renderPurchaseItem = (item) => (
+    <View key={item.id} style={styles.purchaseItemContainer}>
       <View style={styles.purchaseItem}>
         <Image source={{ uri: item.imageUrl }} style={styles.purchaseImage} />
         <View style={styles.purchaseDetails}>
@@ -33,7 +33,7 @@ export default function ProfilePage({ navigation }) {
   );
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container}>
       {/* Profile Header */}
       <View style={styles.header}>
         {/* Notification Bell and Settings Cog */}
@@ -90,15 +90,15 @@ export default function ProfilePage({ navigation }) {
           )}
         </View>
       ) : (
-        <FlatList
-          data={userProfile.purchases}
-          renderItem={renderPurchaseItem}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.purchasesList}
-          ListEmptyComponent={<Text style={styles.noTransactions}>No purchases to show.</Text>}
-        />
+        <View style={styles.purchasesSection}>
+          {userProfile.purchases.length > 0 ? (
+            userProfile.purchases.map((item) => renderPurchaseItem(item))
+          ) : (
+            <Text style={styles.noTransactions}>No purchases to show.</Text>
+          )}
+        </View>
       )}
-    </View>
+    </ScrollView>
   );
 }
 
@@ -182,8 +182,10 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     color: '#0070BA',
   },
-  purchasesList: {
-    paddingBottom: 20,
+  purchasesSection: {
+    backgroundColor: '#fff',
+    borderRadius: 15,
+    marginBottom: 20,
   },
   purchaseItemContainer: {
     backgroundColor: '#fff',
