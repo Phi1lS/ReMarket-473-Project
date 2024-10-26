@@ -1,4 +1,3 @@
-// CategoryPage.js
 import React, { useContext } from 'react';
 import { View, FlatList, StyleSheet, Text, TouchableOpacity, Image } from 'react-native';
 import { UserContext } from '../../UserContext'; // Import UserContext for items data
@@ -12,11 +11,14 @@ export default function CategoryPage({ route }) {
   // Filter items by selected category
   const categoryItems = items.filter((item) => item.category === category);
 
+  // Sort the category items by date using createdAt timestamp
+  const sortedCategoryItems = sortItemsByDate(categoryItems);
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{category} Items</Text>
       <FlatList
-        data={categoryItems}
+        data={sortedCategoryItems}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <TouchableOpacity
@@ -31,6 +33,11 @@ export default function CategoryPage({ route }) {
     </View>
   );
 }
+
+// Sorting function to sort items by createdAt timestamp
+const sortItemsByDate = (items) => {
+  return items.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
+};
 
 const styles = StyleSheet.create({
   container: {
