@@ -22,7 +22,8 @@ import ItemPage from './pages/ItemPage';
 import CreateListingPage from './pages/SellPages/CreateListingPage';
 import SearchUsersPage from './pages/HomePages/SearchUsersPage';
 import CartPage from './pages/ShopPages/CartPage';
-import CateogryPage from './pages/ShopPages/CategoryPage';
+import CategoryPage from './pages/ShopPages/CategoryPage';
+import CheckoutPage from './pages/ShopPages/CheckoutPage';
 import SettingsPage from './pages/ProfilePages/SettingsPage';
 import NotificationsPage from './pages/ProfilePages/NotificationsPage';
 import UserProfilePage from './pages/UserProfilePage';
@@ -30,7 +31,6 @@ import AccountPage from './pages/SettingsPages/AccountPage';
 import PaymentMethodsPage from './pages/SettingsPages/PaymentMethodsPage';
 import ShippingAddressesPage from './pages/SettingsPages/ShippingAddressesPage';
 import ChangePasswordPage from './pages/SettingsPages/ChangePasswordPage';
-import CategoryPage from './pages/ShopPages/CategoryPage';
 
 // Create Bottom Tab Navigator
 const Tab = createBottomTabNavigator();
@@ -177,6 +177,13 @@ function ShopStack() {
         component={CategoryPage} 
         options={{ title: '' }} 
       />
+      <Stack.Screen 
+        name="CheckoutPage" 
+        component={CheckoutPage} 
+        options={{ title: '' }} 
+      />
+      <Stack.Screen name="PaymentMethodsPage" component={PaymentMethodsPage} options={{ title: '' }} />
+      <Stack.Screen name="ShippingAddressesPage" component={ShippingAddressesPage} options={{ title: '' }} />
     </Stack.Navigator>
   );
 }

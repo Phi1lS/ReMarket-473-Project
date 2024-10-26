@@ -13,7 +13,7 @@ export const UserProvider = ({ children }) => {
     username: '',
     avatar: '',
     shippingAddresses: [],
-    paymentMethods: [], // New field for payment methods
+    paymentMethods: [], // Field for payment methods
     listings: [],
     users: [],
   });
@@ -198,10 +198,11 @@ export const UserProvider = ({ children }) => {
       items,
       cart,
       setUserProfile,
+      setCart, // Provide setCart function
       addToCart,
       removeFromCart,
       addPaymentMethod,
-      removePaymentMethod, // Provide removePaymentMethod function in context
+      removePaymentMethod,
     }}>
       {children}
     </UserContext.Provider>

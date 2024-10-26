@@ -1,11 +1,13 @@
 import React, { useContext } from 'react';
-import { View, Text, FlatList, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { View, Text, FlatList, StyleSheet, Image, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { FAB } from 'react-native-paper';  // Floating Action Button for checkout
+import { FAB } from 'react-native-paper';
 import { UserContext } from '../../UserContext';
+import { useNavigation } from '@react-navigation/native';
 
 export default function CartPage() {
   const { cart, items, removeFromCart } = useContext(UserContext);
+  const navigation = useNavigation();
 
   // Retrieve item details for each cart item
   const cartItemsWithDetails = cart.map((cartItem) => {
@@ -15,6 +17,15 @@ export default function CartPage() {
 
   // Calculate total price
   const totalPrice = cartItemsWithDetails.reduce((total, item) => total + item.price * item.quantity, 0);
+
+  // Handle checkout navigation
+  const handleCheckout = () => {
+    if (cartItemsWithDetails.length > 0) {
+      navigation.navigate('CheckoutPage');
+    } else {
+      Alert.alert('Your cart is empty', 'Please add items to your cart before proceeding to checkout.');
+    }
+  };
 
   // Render each cart item with remove button
   const renderCartItem = ({ item }) => (
@@ -48,11 +59,15 @@ export default function CartPage() {
 
       {/* Floating Checkout Button */}
       <FAB
-        style={styles.checkoutFAB}
+        style={[
+          styles.checkoutFAB,
+          cartItemsWithDetails.length === 0 && styles.disabledFAB
+        ]}
         label="Checkout"
         icon="cart"
-        onPress={() => console.log('Proceed to checkout')}
+        onPress={handleCheckout}
         color="white"
+        disabled={cartItemsWithDetails.length === 0}
       />
     </View>
   );
@@ -128,5 +143,8 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: '#0070BA', // ReMarket blue for the checkout button
+  },
+  disabledFAB: {
+    backgroundColor: '#aaa', // Gray background when the cart is empty
   },
 });
