@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect } from 'react';
 import { auth, db } from './firebaseConfig';
-import { doc, getDoc, onSnapshot, collection, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, collection, updateDoc, addDoc, deleteDoc } from 'firebase/firestore';
 
 export const UserContext = createContext();
 
@@ -13,6 +13,7 @@ export const UserProvider = ({ children }) => {
     username: '',
     avatar: '',
     shippingAddresses: [],
+    paymentMethods: [], // New field for payment methods
     listings: [],
     users: [],
   });
@@ -22,6 +23,7 @@ export const UserProvider = ({ children }) => {
   useEffect(() => {
     let unsubscribeProfileListener;
     let unsubscribeAddressListener;
+    let unsubscribePaymentMethodsListener; // Listener for payment methods
     let unsubscribeListingsListener;
     let unsubscribeItemsListener;
     let unsubscribeUsersListener;
@@ -37,13 +39,18 @@ export const UserProvider = ({ children }) => {
           setUserProfile((prevProfile) => ({ ...prevProfile, shippingAddresses: addresses }));
         });
 
+        const paymentMethodsRef = collection(db, 'users', user.uid, 'paymentMethods');
+        unsubscribePaymentMethodsListener = onSnapshot(paymentMethodsRef, (querySnapshot) => {
+          const paymentMethods = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+          setUserProfile((prevProfile) => ({ ...prevProfile, paymentMethods }));
+        });
+
         const listingsRef = collection(db, 'users', user.uid, 'listings');
         unsubscribeListingsListener = onSnapshot(listingsRef, (querySnapshot) => {
           const listings = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
           setUserProfile((prevProfile) => ({ ...prevProfile, listings }));
         });
 
-        // Access top-level `marketplace` collection
         const itemsRef = collection(db, 'marketplace');
         unsubscribeItemsListener = onSnapshot(itemsRef, (querySnapshot) => {
           const itemsData = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
@@ -56,6 +63,7 @@ export const UserProvider = ({ children }) => {
           setUserProfile((prevProfile) => ({ ...prevProfile, users }));
         });
       } else {
+        // Reset state if user logs out
         setUserProfile({
           id: '',
           firstName: '',
@@ -64,6 +72,7 @@ export const UserProvider = ({ children }) => {
           username: '',
           avatar: '',
           shippingAddresses: [],
+          paymentMethods: [],
           listings: [],
           users: [],
         });
@@ -71,6 +80,7 @@ export const UserProvider = ({ children }) => {
         setCart([]); // Reset cart
 
         if (unsubscribeAddressListener) unsubscribeAddressListener();
+        if (unsubscribePaymentMethodsListener) unsubscribePaymentMethodsListener();
         if (unsubscribeListingsListener) unsubscribeListingsListener();
         if (unsubscribeItemsListener) unsubscribeItemsListener();
         if (unsubscribeUsersListener) unsubscribeUsersListener();
@@ -80,6 +90,7 @@ export const UserProvider = ({ children }) => {
     return () => {
       unsubscribeAuth();
       if (unsubscribeAddressListener) unsubscribeAddressListener();
+      if (unsubscribePaymentMethodsListener) unsubscribePaymentMethodsListener();
       if (unsubscribeListingsListener) unsubscribeListingsListener();
       if (unsubscribeItemsListener) unsubscribeItemsListener();
       if (unsubscribeUsersListener) unsubscribeUsersListener();
@@ -161,8 +172,37 @@ export const UserProvider = ({ children }) => {
     }
   };
 
+  // Function to add a payment method
+  const addPaymentMethod = async (paymentMethod) => {
+    try {
+      const paymentMethodsRef = collection(db, 'users', userProfile.id, 'paymentMethods');
+      await addDoc(paymentMethodsRef, paymentMethod);
+    } catch (error) {
+      console.error('Error adding payment method:', error);
+    }
+  };
+
+  // Function to remove a payment method
+  const removePaymentMethod = async (paymentMethodId) => {
+    try {
+      const paymentMethodRef = doc(db, 'users', userProfile.id, 'paymentMethods', paymentMethodId);
+      await deleteDoc(paymentMethodRef);
+    } catch (error) {
+      console.error('Error removing payment method:', error);
+    }
+  };
+
   return (
-    <UserContext.Provider value={{ userProfile, items, cart, setUserProfile, addToCart, removeFromCart }}>
+    <UserContext.Provider value={{
+      userProfile,
+      items,
+      cart,
+      setUserProfile,
+      addToCart,
+      removeFromCart,
+      addPaymentMethod,
+      removePaymentMethod, // Provide removePaymentMethod function in context
+    }}>
       {children}
     </UserContext.Provider>
   );
