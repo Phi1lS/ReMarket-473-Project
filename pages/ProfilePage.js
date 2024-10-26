@@ -14,6 +14,11 @@ export default function ProfilePage({ navigation }) {
     setSelectedTab(tab);
   };
 
+  // Function to sort purchases by timestamp (from most recent to oldest)
+  const sortPurchasesByDate = (purchases) => {
+    return purchases.sort((a, b) => b.timestamp.seconds - a.timestamp.seconds);
+  };
+
   const renderPurchaseItem = (item) => (
     <View key={item.id} style={styles.purchaseItemContainer}>
       <View style={styles.purchaseItem}>
@@ -92,7 +97,7 @@ export default function ProfilePage({ navigation }) {
       ) : (
         <View style={styles.purchasesSection}>
           {userProfile.purchases.length > 0 ? (
-            userProfile.purchases.map((item) => renderPurchaseItem(item))
+            sortPurchasesByDate(userProfile.purchases).map((item) => renderPurchaseItem(item))
           ) : (
             <Text style={styles.noTransactions}>No purchases to show.</Text>
           )}
