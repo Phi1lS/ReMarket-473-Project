@@ -15,27 +15,22 @@ export default function SellingPage() {
 
   const handleDeleteListing = async (itemId) => {
     try {
-      // Delete from user's listings subcollection
       await deleteDoc(doc(db, 'users', userProfile.id, 'listings', itemId));
-  
-      // Check if the item exists in the marketplace collection before deleting
       const marketplaceDocRef = doc(db, 'marketplace', itemId);
       const marketplaceDocSnapshot = await getDoc(marketplaceDocRef);
-  
+
       if (marketplaceDocSnapshot.exists()) {
-        // Delete from marketplace collection
         await deleteDoc(marketplaceDocRef);
         console.log(`Listing with ID ${itemId} successfully deleted from both listings and marketplace.`);
       } else {
         console.warn(`Listing with ID ${itemId} not found in the marketplace collection.`);
       }
-  
-      // Update UserContext by filtering out the deleted listing
+
       setUserProfile((prevProfile) => ({
         ...prevProfile,
         listings: prevProfile.listings.filter((listing) => listing.id !== itemId),
       }));
-  
+
       Alert.alert('Success', 'Listing deleted successfully.');
     } catch (error) {
       console.error('Error deleting listing:', error);
@@ -73,7 +68,6 @@ export default function SellingPage() {
         <Text style={styles.listingQuantity}>Quantity: {item.quantity || '1'}</Text>
       </View>
 
-      {/* Trashcan icon for deletion */}
       <TouchableOpacity
         style={styles.deleteButton}
         onPress={() => confirmDeleteListing(item.id)}
@@ -90,7 +84,7 @@ export default function SellingPage() {
         data={uniqueListings}
         keyExtractor={(item) => item.id}
         renderItem={renderListingItem}
-        contentContainerStyle={styles.listingsContainer}
+        contentContainerStyle={uniqueListings.length === 0 ? styles.emptyListContainer : styles.listingsContainer}
         ListEmptyComponent={<Text style={styles.emptyMessage}>No listings available.</Text>}
       />
       <TouchableOpacity style={styles.floatingButton} onPress={() => navigation.navigate('CreateListingPage')}>
@@ -117,6 +111,11 @@ const styles = StyleSheet.create({
   listingsContainer: {
     paddingBottom: 80,
   },
+  emptyListContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   listingContainer: {
     flexDirection: 'row',
     backgroundColor: '#f1f4f8',
@@ -126,7 +125,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#0070BA',
     elevation: 2,
-    position: 'relative', // For positioning the delete button
+    position: 'relative',
   },
   listingImage: {
     width: 80,
@@ -158,5 +157,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 10,
     right: 10,
+  },
+  emptyMessage: {
+    fontSize: 18,
+    color: '#999',
+    textAlign: 'center',
   },
 });
