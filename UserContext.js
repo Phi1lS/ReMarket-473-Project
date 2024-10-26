@@ -138,18 +138,31 @@ export const UserProvider = ({ children }) => {
 
   const addPurchase = async (purchaseItem) => {
     try {
-      const purchaseRef = collection(db, 'users', userProfile.id, 'purchases');
-      await addDoc(purchaseRef, {
-        itemId: purchaseItem.itemId,
-        itemName: purchaseItem.itemName,
-        price: purchaseItem.price,
-        quantity: purchaseItem.quantity,
-        message: purchaseItem.message, // Explicitly add the message
-        timestamp: serverTimestamp(), // Use the timestamp directly
-      });
-      console.log("Purchase added:", purchaseItem); // Confirm added purchase
+      // Ensure you get the item details from the marketplace, including the image URL
+      const marketplaceRef = doc(db, 'marketplace', purchaseItem.itemId);
+      const marketplaceDoc = await getDoc(marketplaceRef);
+  
+      if (marketplaceDoc.exists()) {
+        const marketplaceData = marketplaceDoc.data();
+  
+        // Add the purchase to the user's 'purchases' subcollection, including the image URL from the marketplace
+        const purchaseRef = collection(db, 'users', userProfile.id, 'purchases');
+        await addDoc(purchaseRef, {
+          itemId: purchaseItem.itemId,
+          itemName: purchaseItem.itemName,
+          price: purchaseItem.price,
+          quantity: purchaseItem.quantity,
+          message: purchaseItem.message, // Ensure the message gets saved
+          imageUrl: marketplaceData.imageUrl || '', // Add the imageUrl from the marketplace document
+          timestamp: serverTimestamp(), // Use the timestamp directly
+        });
+  
+        console.log("Purchase added with image:", purchaseItem);
+      } else {
+        console.error("Marketplace item not found:", purchaseItem.itemId);
+      }
     } catch (error) {
-      console.error('Error adding purchase:', error);
+      console.error('Error adding purchase with image:', error);
     }
   };
 

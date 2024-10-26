@@ -1,24 +1,40 @@
-import React, { useContext, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useContext, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Image, Platform } from 'react-native';
+import { Ionicons } from 'react-native-vector-icons';
 import { Avatar } from 'react-native-paper';
-import { UserContext } from '../UserContext'; // Import the user context
+import { UserContext } from '../UserContext';
 
 const avatarPlaceholder = require('../assets/avatar.png');
 
 export default function ProfilePage({ navigation }) {
-  const { userProfile } = useContext(UserContext); // Access user data and avatar URI from context
+  const { userProfile } = useContext(UserContext);
+  const [selectedTab, setSelectedTab] = useState('wallet');
+  const [isPayPalLinked] = useState(true);
 
-  const [selectedTab, setSelectedTab] = useState('wallet'); // Tabs between 'wallet' and 'purchases'
-  const [isPayPalLinked] = useState(true); // Set to true for demo purposes
-
-  // Tabs handler
   const handleTabSwitch = (tab) => {
     setSelectedTab(tab);
   };
 
+  const renderPurchaseItem = ({ item }) => (
+    <View style={styles.purchaseItemContainer}>
+      <View style={styles.purchaseItem}>
+        <Image source={{ uri: item.imageUrl }} style={styles.purchaseImage} />
+        <View style={styles.purchaseDetails}>
+          <Text style={styles.purchaseTitle}>{item.itemName}</Text>
+          <Text style={styles.purchaseText}>Price: ${item.price.toFixed(2)}</Text>
+          <Text style={styles.purchaseText}>Quantity: {item.quantity}</Text>
+          <Text style={styles.purchaseText}>Message: {item.message || 'No message'}</Text>
+          <Text style={styles.purchaseText}>
+            Date: {new Date(item.timestamp?.seconds * 1000).toLocaleDateString()}
+          </Text>
+        </View>
+      </View>
+      <View style={styles.separator} />
+    </View>
+  );
+
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <View style={styles.container}>
       {/* Profile Header */}
       <View style={styles.header}>
         {/* Notification Bell and Settings Cog */}
@@ -34,7 +50,7 @@ export default function ProfilePage({ navigation }) {
         {/* Avatar and User Info */}
         <Avatar.Image
           size={90}
-          source={userProfile.avatar ? { uri: userProfile.avatar } : avatarPlaceholder} // Use avatar if available, else fallback to placeholder
+          source={userProfile.avatar ? { uri: userProfile.avatar } : avatarPlaceholder}
           style={styles.avatar}
         />
         <Text style={styles.name}>{`${userProfile.firstName} ${userProfile.lastName}`}</Text>
@@ -57,7 +73,6 @@ export default function ProfilePage({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* Dynamic Content Based on Tab */}
       {selectedTab === 'wallet' ? (
         <View style={styles.walletSection}>
           <Text style={styles.linkedPayPalLabel}>PayPal Status</Text>
@@ -69,18 +84,21 @@ export default function ProfilePage({ navigation }) {
           </View>
         </View>
       ) : (
-        <View style={styles.transactionSection}>
-          <Text style={styles.sectionTitle}>Recent Purchases</Text>
-          <Text style={styles.noTransactions}>No purchases to show.</Text>
-        </View>
+        <FlatList
+          data={userProfile.purchases}
+          renderItem={renderPurchaseItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.purchasesList}
+          ListEmptyComponent={<Text style={styles.noTransactions}>No purchases to show.</Text>}
+        />
       )}
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flexGrow: 1,
+    flex: 1,
     padding: 20,
     paddingTop: Platform.OS === 'ios' ? 80 : 60,
     backgroundColor: '#f5f5f5',
@@ -139,11 +157,6 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     padding: 20,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
   linkedPayPalLabel: {
     fontSize: 18,
     fontWeight: 'bold',
@@ -158,13 +171,47 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginLeft: 10,
   },
-  transactionSection: {
+  purchasesList: {
+    paddingBottom: 20,
+  },
+  purchaseItemContainer: {
     backgroundColor: '#fff',
-    borderRadius: 15,
-    padding: 20,
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+  purchaseItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  purchaseImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 10,
+    marginRight: 15,
+  },
+  purchaseDetails: {
+    flex: 1,
+  },
+  purchaseTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  purchaseText: {
+    fontSize: 14,
+    color: '#555',
+    marginBottom: 2,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: '#ddd',
+    marginTop: 10,
   },
   noTransactions: {
     fontSize: 16,
     color: '#999',
+    textAlign: 'center',
+    marginTop: 20,
   },
 });

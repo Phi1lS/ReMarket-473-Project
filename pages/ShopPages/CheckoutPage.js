@@ -60,12 +60,13 @@ export default function CheckoutPage() {
             await updateDoc(marketplaceRef, { quantity: newMarketplaceQuantity });
             await updateDoc(sellerListingRef, { quantity: newSellerQuantity });
       
-            // Add item details and purchase metadata to the purchases array
+            // Add item details, including image URL, and purchase metadata to the purchases array
             purchases.push({
               itemId: cartItem.id,
               itemName: cartItem.description,
               price: cartItem.price,
               quantity: cartItem.quantity,
+              imageUrl: cartItem.imageUrl || '', // Include image URL from the cartItem
               timestamp: serverTimestamp(),
               message: message || '', // Use the current state of message here
             });
