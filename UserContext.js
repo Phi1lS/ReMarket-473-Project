@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect } from 'react';
 import { auth, db } from './firebaseConfig';
-import { doc, getDoc, onSnapshot, collection, updateDoc, addDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, collection, updateDoc, addDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 
 export const UserContext = createContext();
 
@@ -13,26 +13,29 @@ export const UserProvider = ({ children }) => {
     username: '',
     avatar: '',
     shippingAddresses: [],
-    paymentMethods: [], // Field for payment methods
+    paymentMethods: [],
     listings: [],
     users: [],
+    purchases: [], // Field for purchases
   });
-  const [items, setItems] = useState([]); // All items in the marketplace
-  const [cart, setCart] = useState([]); // Cart state
+  const [items, setItems] = useState([]);
+  const [cart, setCart] = useState([]);
 
   useEffect(() => {
     let unsubscribeProfileListener;
     let unsubscribeAddressListener;
-    let unsubscribePaymentMethodsListener; // Listener for payment methods
+    let unsubscribePaymentMethodsListener;
     let unsubscribeListingsListener;
     let unsubscribeItemsListener;
     let unsubscribeUsersListener;
+    let unsubscribePurchasesListener;
 
     const unsubscribeAuth = auth.onAuthStateChanged((user) => {
       if (user) {
         fetchUserProfile(user.uid);
-        loadCart(user.uid); // Load the user's cart
+        loadCart(user.uid);
 
+        // Subcollection listeners
         const addressesRef = collection(db, 'users', user.uid, 'shippingAddresses');
         unsubscribeAddressListener = onSnapshot(addressesRef, (querySnapshot) => {
           const addresses = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
@@ -43,6 +46,12 @@ export const UserProvider = ({ children }) => {
         unsubscribePaymentMethodsListener = onSnapshot(paymentMethodsRef, (querySnapshot) => {
           const paymentMethods = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
           setUserProfile((prevProfile) => ({ ...prevProfile, paymentMethods }));
+        });
+
+        const purchasesRef = collection(db, 'users', user.uid, 'purchases');
+        unsubscribePurchasesListener = onSnapshot(purchasesRef, (querySnapshot) => {
+          const purchases = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+          setUserProfile((prevProfile) => ({ ...prevProfile, purchases }));
         });
 
         const listingsRef = collection(db, 'users', user.uid, 'listings');
@@ -64,26 +73,7 @@ export const UserProvider = ({ children }) => {
         });
       } else {
         // Reset state if user logs out
-        setUserProfile({
-          id: '',
-          firstName: '',
-          lastName: '',
-          email: '',
-          username: '',
-          avatar: '',
-          shippingAddresses: [],
-          paymentMethods: [],
-          listings: [],
-          users: [],
-        });
-        setItems([]);
-        setCart([]); // Reset cart
-
-        if (unsubscribeAddressListener) unsubscribeAddressListener();
-        if (unsubscribePaymentMethodsListener) unsubscribePaymentMethodsListener();
-        if (unsubscribeListingsListener) unsubscribeListingsListener();
-        if (unsubscribeItemsListener) unsubscribeItemsListener();
-        if (unsubscribeUsersListener) unsubscribeUsersListener();
+        resetUserState();
       }
     });
 
@@ -91,6 +81,7 @@ export const UserProvider = ({ children }) => {
       unsubscribeAuth();
       if (unsubscribeAddressListener) unsubscribeAddressListener();
       if (unsubscribePaymentMethodsListener) unsubscribePaymentMethodsListener();
+      if (unsubscribePurchasesListener) unsubscribePurchasesListener();
       if (unsubscribeListingsListener) unsubscribeListingsListener();
       if (unsubscribeItemsListener) unsubscribeItemsListener();
       if (unsubscribeUsersListener) unsubscribeUsersListener();
@@ -106,11 +97,7 @@ export const UserProvider = ({ children }) => {
         setUserProfile((prevProfile) => ({
           ...prevProfile,
           id: userId,
-          firstName: userData.firstName || '',
-          lastName: userData.lastName || '',
-          email: userData.email || '',
-          username: userData.username || '',
-          avatar: userData.avatar || '',
+          ...userData,
         }));
       }
     } catch (error) {
@@ -118,7 +105,24 @@ export const UserProvider = ({ children }) => {
     }
   };
 
-  // Load cart items from Firestore
+  const resetUserState = () => {
+    setUserProfile({
+      id: '',
+      firstName: '',
+      lastName: '',
+      email: '',
+      username: '',
+      avatar: '',
+      shippingAddresses: [],
+      paymentMethods: [],
+      listings: [],
+      users: [],
+      purchases: [],
+    });
+    setItems([]);
+    setCart([]);
+  };
+
   const loadCart = async (userId) => {
     try {
       const userRef = doc(db, 'users', userId);
@@ -132,7 +136,23 @@ export const UserProvider = ({ children }) => {
     }
   };
 
-  // Function to add an item to the cart
+  const addPurchase = async (purchaseItem) => {
+    try {
+      const purchaseRef = collection(db, 'users', userProfile.id, 'purchases');
+      await addDoc(purchaseRef, {
+        itemId: purchaseItem.itemId,
+        itemName: purchaseItem.itemName,
+        price: purchaseItem.price,
+        quantity: purchaseItem.quantity,
+        message: purchaseItem.message, // Explicitly add the message
+        timestamp: serverTimestamp(), // Use the timestamp directly
+      });
+      console.log("Purchase added:", purchaseItem); // Confirm added purchase
+    } catch (error) {
+      console.error('Error adding purchase:', error);
+    }
+  };
+
   const addToCart = async (item) => {
     try {
       const existingItem = cart.find(cartItem => cartItem.itemId === item.id);
@@ -150,7 +170,6 @@ export const UserProvider = ({ children }) => {
 
       setCart(updatedCart);
 
-      // Save updated cart as a whole to Firestore
       const userRef = doc(db, 'users', userProfile.id);
       await updateDoc(userRef, { cart: updatedCart });
     } catch (error) {
@@ -158,13 +177,11 @@ export const UserProvider = ({ children }) => {
     }
   };
 
-  // Function to remove item from cart
   const removeFromCart = async (itemId) => {
     try {
       const updatedCart = cart.filter((cartItem) => cartItem.itemId !== itemId);
       setCart(updatedCart);
 
-      // Update Firestore with the modified cart
       const userRef = doc(db, 'users', userProfile.id);
       await updateDoc(userRef, { cart: updatedCart });
     } catch (error) {
@@ -172,7 +189,6 @@ export const UserProvider = ({ children }) => {
     }
   };
 
-  // Function to add a payment method
   const addPaymentMethod = async (paymentMethod) => {
     try {
       const paymentMethodsRef = collection(db, 'users', userProfile.id, 'paymentMethods');
@@ -182,7 +198,6 @@ export const UserProvider = ({ children }) => {
     }
   };
 
-  // Function to remove a payment method
   const removePaymentMethod = async (paymentMethodId) => {
     try {
       const paymentMethodRef = doc(db, 'users', userProfile.id, 'paymentMethods', paymentMethodId);
@@ -198,11 +213,12 @@ export const UserProvider = ({ children }) => {
       items,
       cart,
       setUserProfile,
-      setCart, // Provide setCart function
+      setCart,
       addToCart,
       removeFromCart,
       addPaymentMethod,
       removePaymentMethod,
+      addPurchase, // New function to add a purchase
     }}>
       {children}
     </UserContext.Provider>
