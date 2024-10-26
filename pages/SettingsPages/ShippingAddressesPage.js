@@ -1,15 +1,14 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
 import { UserContext } from '../../UserContext';
 import { auth, db } from '../../firebaseConfig';
-import { doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore'; // Firestore update functions
-import { collection, addDoc } from 'firebase/firestore'; // Firestore collection functions
+import { collection, addDoc, updateDoc, doc, deleteDoc, onSnapshot } from 'firebase/firestore';
 
 export default function ShippingAddressesPage({ navigation }) {
   const { userProfile, setUserProfile } = useContext(UserContext);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [editingAddress, setEditingAddress] = useState(false); // Track if editing an address
-  const [currentAddress, setCurrentAddress] = useState(null); // Track the address being edited
+  const [editingAddress, setEditingAddress] = useState(false); 
+  const [currentAddress, setCurrentAddress] = useState(null); 
   const [newAddress, setNewAddress] = useState({
     firstName: '',
     lastName: '',
@@ -20,12 +19,13 @@ export default function ShippingAddressesPage({ navigation }) {
     zipCode: '',
   });
 
-  // Close modal and reset address form
+  const userRef = doc(db, 'users', auth.currentUser.uid);
+
   const closeModal = () => {
     setIsModalVisible(false);
+    handleModalDismiss();
   };
 
-  // Handle modal dismiss to reset the form fields
   const handleModalDismiss = () => {
     setNewAddress({
       firstName: '',
@@ -36,30 +36,28 @@ export default function ShippingAddressesPage({ navigation }) {
       state: '',
       zipCode: '',
     });
-    setCurrentAddress(null); // Reset currentAddress when closing modal
+    setCurrentAddress(null);
   };
 
   // Handle saving a new or edited address
   const handleSaveAddress = async () => {
-    // Check for required fields
     if (!newAddress.firstName || !newAddress.lastName || !newAddress.streetAddress || !newAddress.city || !newAddress.state || !newAddress.zipCode) {
       Alert.alert('Error', 'Please fill out all required fields.');
       return;
     }
 
-    const updatedAddresses = editingAddress
-      ? userProfile.shippingAddresses.map(addr =>
-          addr.id === currentAddress.id ? { ...newAddress, id: currentAddress.id } : addr
-        )
-      : [...(userProfile.shippingAddresses || []), { ...newAddress, id: Date.now().toString() }];
-
     try {
-      // Update Firestore with the new list of addresses
-      const userRef = doc(db, 'users', auth.currentUser.uid);
-      await updateDoc(userRef, { shippingAddresses: updatedAddresses });
+      const addressesRef = collection(userRef, 'shippingAddresses');
 
-      // Update context
-      setUserProfile({ ...userProfile, shippingAddresses: updatedAddresses });
+      if (editingAddress) {
+        // Update existing address
+        const addressDocRef = doc(userRef, 'shippingAddresses', currentAddress.id);
+        await updateDoc(addressDocRef, newAddress);
+      } else {
+        // Add new address to the subcollection
+        await addDoc(addressesRef, newAddress);
+      }
+
       closeModal(); // Close modal after saving
     } catch (error) {
       console.error('Error saving address:', error);
@@ -75,15 +73,9 @@ export default function ShippingAddressesPage({ navigation }) {
         text: 'Remove',
         style: 'destructive',
         onPress: async () => {
-          const updatedAddresses = userProfile.shippingAddresses.filter(addr => addr.id !== currentAddress.id);
-
           try {
-            // Update Firestore by removing the address
-            const userRef = doc(db, 'users', auth.currentUser.uid);
-            await updateDoc(userRef, { shippingAddresses: updatedAddresses });
-
-            // Update context
-            setUserProfile({ ...userProfile, shippingAddresses: updatedAddresses });
+            const addressDocRef = doc(userRef, 'shippingAddresses', currentAddress.id);
+            await deleteDoc(addressDocRef);
             setIsModalVisible(false);
           } catch (error) {
             console.error('Error removing address:', error);
@@ -96,7 +88,7 @@ export default function ShippingAddressesPage({ navigation }) {
 
   // Open the form for adding a new address
   const handleAddAddress = () => {
-    setEditingAddress(false); // Indicate that this is for a new address
+    setEditingAddress(false); 
     setNewAddress({
       firstName: '',
       lastName: '',
@@ -111,17 +103,27 @@ export default function ShippingAddressesPage({ navigation }) {
 
   // Open the form for editing an existing address
   const handleEditAddress = (address) => {
-    setEditingAddress(true); // Indicate that we are editing
-    setCurrentAddress(address); // Set the current address
-    setNewAddress({ ...address }); // Populate the form with the existing address
+    setEditingAddress(true);
+    setCurrentAddress(address);
+    setNewAddress({ ...address });
     setIsModalVisible(true);
   };
+
+  // Fetch addresses from subcollection (optional, if needed in real-time)
+  useEffect(() => {
+    const addressesRef = collection(userRef, 'shippingAddresses');
+    const unsubscribe = onSnapshot(addressesRef, (snapshot) => {
+      const addresses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setUserProfile((prevProfile) => ({ ...prevProfile, shippingAddresses: addresses }));
+    });
+    
+    return () => unsubscribe();
+  }, []);
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Shipping Addresses</Text>
 
-      {/* List of shipping addresses */}
       <FlatList
         data={userProfile.shippingAddresses || []}
         renderItem={({ item }) => (
@@ -144,7 +146,6 @@ export default function ShippingAddressesPage({ navigation }) {
         ListEmptyComponent={<Text style={styles.infoText}>No shipping addresses available.</Text>}
       />
 
-      {/* New Shipping Address Button */}
       <TouchableOpacity 
         style={styles.newAddressButton}
         onPress={handleAddAddress}
@@ -152,13 +153,12 @@ export default function ShippingAddressesPage({ navigation }) {
         <Text style={styles.newAddressButtonText}>New Shipping Address</Text>
       </TouchableOpacity>
 
-      {/* Modal for Adding or Editing Address */}
       <Modal
         visible={isModalVisible}
         animationType="slide"
         transparent={true}
-        onRequestClose={closeModal} // For Android back button
-        onDismiss={handleModalDismiss} // Reset form when modal is dismissed
+        onRequestClose={closeModal}
+        onDismiss={handleModalDismiss}
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
@@ -214,12 +214,10 @@ export default function ShippingAddressesPage({ navigation }) {
               />
             </View>
 
-            {/* Save Button */}
             <TouchableOpacity style={styles.saveButton} onPress={handleSaveAddress}>
               <Text style={styles.saveButtonText}>Save</Text>
             </TouchableOpacity>
 
-            {/* Remove Button for Editing */}
             {editingAddress && (
               <TouchableOpacity style={styles.removeButton} onPress={handleRemoveAddress}>
                 <Text style={styles.removeButtonText}>Remove</Text>
