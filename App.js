@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Platform, StatusBar, View, TouchableOpacity } from 'react-native';
+import { StyleSheet, Platform, StatusBar, View, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Provider as PaperProvider } from 'react-native-paper';
 import { NavigationContainer } from '@react-navigation/native';
 import { UserProvider } from './UserContext';
@@ -282,6 +282,15 @@ function ProfileStack() {
 export default function App() {
   const [user, loading] = useAuthState(auth); // Firebase authentication
 
+  // If Firebase auth state is loading, show a loading spinner or splash screen
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#4CB0E6" />
+      </View>
+    );
+  }
+
   return (
     <UserProvider>
       <NavigationContainer>
@@ -303,6 +312,11 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   container: {
     flex: 1,
     backgroundColor: '#fff',
