@@ -274,6 +274,7 @@ function ProfileStack() {
         component={NotificationsPage} 
         options={{ title: 'Notifications' }} 
       />
+      <Stack.Screen name="PaymentMethodsPage" component={PaymentMethodsPage} options={{ title: '' }} />
     </Stack.Navigator>
   );
 }

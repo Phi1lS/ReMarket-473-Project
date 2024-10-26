@@ -9,7 +9,6 @@ const avatarPlaceholder = require('../assets/avatar.png');
 export default function ProfilePage({ navigation }) {
   const { userProfile } = useContext(UserContext);
   const [selectedTab, setSelectedTab] = useState('wallet');
-  const [isPayPalLinked] = useState(true);
 
   const handleTabSwitch = (tab) => {
     setSelectedTab(tab);
@@ -75,13 +74,20 @@ export default function ProfilePage({ navigation }) {
 
       {selectedTab === 'wallet' ? (
         <View style={styles.walletSection}>
-          <Text style={styles.linkedPayPalLabel}>PayPal Status</Text>
-          <View style={styles.linkedPayPalContainer}>
-            <Ionicons name="logo-paypal" size={24} color="#0070BA" />
-            <Text style={styles.linkedPayPalText}>
-              {isPayPalLinked ? 'PayPal Connected' : 'No PayPal Connected'}
-            </Text>
-          </View>
+          {userProfile.paymentMethods.length > 0 ? (
+            <View style={styles.linkedPaymentContainer}>
+              <Ionicons name="card-outline" size={24} color="#4CB0E6" />
+              <Text style={styles.linkedPaymentText}>Payment Method Connected</Text>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.addPaymentButton}
+              onPress={() => navigation.navigate('PaymentMethodsPage')}
+            >
+              <Ionicons name="add-circle-outline" size={24} color="#0070BA" />
+              <Text style={styles.addPaymentText}>Add Payment Method</Text>
+            </TouchableOpacity>
+          )}
         </View>
       ) : (
         <FlatList
@@ -157,19 +163,24 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     padding: 20,
   },
-  linkedPayPalLabel: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  linkedPayPalContainer: {
+  linkedPaymentContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
   },
-  linkedPayPalText: {
+  linkedPaymentText: {
     fontSize: 16,
     marginLeft: 10,
+  },
+  addPaymentButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  addPaymentText: {
+    fontSize: 16,
+    marginLeft: 10,
+    color: '#0070BA',
   },
   purchasesList: {
     paddingBottom: 20,
