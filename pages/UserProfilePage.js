@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from 'react-native';
 import { Avatar } from 'react-native-paper';
 import { Ionicons } from 'react-native-vector-icons';
 import { doc, getDoc, collection, onSnapshot } from 'firebase/firestore';
@@ -57,14 +57,17 @@ export default function UserProfilePage({ route, navigation }) {
 
   const handleTabSwitch = (tab) => setSelectedTab(tab);
 
-  const renderPurchaseItem = ({ item }) => (
-    <View style={styles.purchaseItem}>
-      <Image source={{ uri: item.imageUrl }} style={styles.purchaseImage} />
-      <View style={styles.purchaseDetails}>
-        <Text style={styles.purchaseTitle}>{item.itemName}</Text>
-        <Text style={styles.purchaseText}>{item.message || 'No message'}</Text>
-        <Text style={styles.purchaseText}>{new Date(item.timestamp?.seconds * 1000).toLocaleDateString()}</Text>
+  const renderPurchaseItem = (item) => (
+    <View key={item.id} style={styles.purchaseItemContainer}>
+      <View style={styles.purchaseItem}>
+        <Image source={{ uri: item.imageUrl }} style={styles.purchaseImage} />
+        <View style={styles.purchaseDetails}>
+          <Text style={styles.purchaseTitle}>{item.itemName}</Text>
+          <Text style={styles.purchaseText}>{item.message || 'No message'}</Text>
+          <Text style={styles.purchaseText}>{new Date(item.timestamp?.seconds * 1000).toLocaleDateString()}</Text>
+        </View>
       </View>
+      <View style={styles.separator} />
     </View>
   );
 
@@ -85,7 +88,7 @@ export default function UserProfilePage({ route, navigation }) {
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={{ flexGrow: 1 }}>
       <View style={styles.header}>
         <Avatar.Image 
           size={90} 
@@ -127,13 +130,7 @@ export default function UserProfilePage({ route, navigation }) {
       {selectedTab === 'activity' ? (
         <View style={styles.activitySection}>
           {purchases.length > 0 ? (
-            <FlatList
-              data={purchases}
-              renderItem={renderPurchaseItem}
-              keyExtractor={(item) => item.id}
-              ItemSeparatorComponent={() => <View style={styles.separator} />}
-              contentContainerStyle={styles.purchaseListContainer}
-            />
+            purchases.map((item) => renderPurchaseItem(item))
           ) : (
             <Text style={styles.noTransactions}>No purchases to show.</Text>
           )}
@@ -143,7 +140,7 @@ export default function UserProfilePage({ route, navigation }) {
           <Text>No friends yet.</Text>
         </View>
       )}
-    </View>
+    </ScrollView>
   );
 }
 
@@ -161,7 +158,7 @@ const styles = StyleSheet.create({
   },
   avatar: {
     backgroundColor: '#4CB0E6',
-    marginTop:20,
+    marginTop: 20,
   },
   name: {
     fontSize: 24,
@@ -215,11 +212,16 @@ const styles = StyleSheet.create({
     padding: 20,
     marginHorizontal: 20, // Add margins to ensure it's not full width
   },
+  purchaseItemContainer: {
+    backgroundColor: '#fff',
+    padding: 10,
+    marginBottom: 10,
+    borderRadius: 10,
+  },
   purchaseItem: {
     flexDirection: 'row',
     marginBottom: 10,
-    maxWidth: '90%', // Restrict the width of each purchase item
-    alignSelf: 'center', // Center-align the purchase items
+    alignSelf: 'center',
   },
   purchaseImage: {
     width: 80,
@@ -257,11 +259,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#f5f5f5',
   },
-  purchaseListContainer: {
-    paddingHorizontal: 10,
-  },
   noTransactions: {
     fontSize: 16,
     color: '#999',
+    textAlign: 'center',
   },
 });
