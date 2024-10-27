@@ -4,49 +4,42 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { UserContext } from '../UserContext';
 import { db, storage } from '../firebaseConfig';
-import { collection, query, where, getDocs, getDoc, doc, deleteDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, getDocs, getDoc, doc, deleteDoc } from 'firebase/firestore';
 import { ref, getDownloadURL } from 'firebase/storage'; // Import storage functions
 
 export default function SellingPage() {
   const navigation = useNavigation();
   const { userProfile } = useContext(UserContext);
-  const [listings, setListings] = useState([]); // Add state for listings
-  const [loading, setLoading] = useState(true); // Add loading state
+  const [listings, setListings] = useState([]); // State for listings
+  const [loading, setLoading] = useState(true); // Loading state
 
   useEffect(() => {
-    const fetchUserListings = async () => {
-      if (!userProfile?.id) return; // Check if userProfile exists
+    if (!userProfile?.id) return;
 
-      try {
-        const listingsRef = collection(db, 'users', userProfile.id, 'listings');
-        const querySnapshot = await getDocs(listingsRef);
+    const fetchListings = async () => {
+      const listingsRef = collection(db, 'users', userProfile.id, 'listings');
 
-        if (querySnapshot.empty) {
-          console.log('No listings found.');
-          setListings([]); // Set empty array if no listings
-        } else {
-          const fetchedListings = await Promise.all(
-            querySnapshot.docs.map(async (doc) => {
-              const listingData = doc.data();
-              const imageUrl = await getDownloadURL(ref(storage, listingData.imageUrl)); // Fetch full download URL
-              return {
-                id: doc.id,
-                ...listingData,
-                imageUrl, // Store full download URL
-              };
-            })
-          );
-          setListings(fetchedListings); // Set listings in state
-        }
-      } catch (error) {
-        console.error('Error fetching listings:', error);
-      } finally {
-        setLoading(false); // Stop loading
-      }
+      const unsubscribe = onSnapshot(listingsRef, async (snapshot) => {
+        const fetchedListings = await Promise.all(
+          snapshot.docs.map(async (doc) => {
+            const listingData = doc.data();
+            const imageUrl = await getDownloadURL(ref(storage, listingData.imageUrl)); // Fetch the image URL
+            return {
+              id: doc.id,
+              ...listingData,
+              imageUrl,
+            };
+          })
+        );
+        setListings(fetchedListings); // Set the listings with updated quantities
+        setLoading(false); // Stop loading when listings are fetched
+      });
+
+      return () => unsubscribe(); // Cleanup listener on unmount
     };
 
-    fetchUserListings();
-  }, [userProfile?.id]); // Fetch listings when userProfile is available
+    fetchListings();
+  }, [userProfile?.id]);
 
   const handleDeleteListing = async (itemId) => {
     try {
