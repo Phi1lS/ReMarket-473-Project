@@ -3,6 +3,7 @@ import { View, Text, Image, StyleSheet, TouchableOpacity, ScrollView, Alert } fr
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from 'react-native-paper';
 import { UserContext } from '../UserContext'; // Import UserContext
+import fallbackAvatar from '../assets/avatar.png'; // Ensure you have a fallback avatar imported
 
 export default function ItemPage({ route }) {
   const { item } = route.params;
@@ -42,9 +43,13 @@ export default function ItemPage({ route }) {
         <View style={styles.sellerContainer}>
           <Text style={styles.sellerTitle}>Seller Information</Text>
           <View style={styles.sellerInfo}>
-            <Avatar.Image size={50} source={{ uri: userProfile.avatar }} style={styles.avatar} />
+            <Avatar.Image 
+              size={50} 
+              source={item.sellerAvatar ? { uri: item.sellerAvatar } : fallbackAvatar} 
+              style={styles.avatar} 
+            />
             <View style={styles.sellerDetails}>
-              <Text style={styles.sellerName}>{`${userProfile.firstName} ${userProfile.lastName}`}</Text>
+              <Text style={styles.sellerName}>{item.sellerName || 'Unknown Seller'}</Text>
             </View>
           </View>
         </View>

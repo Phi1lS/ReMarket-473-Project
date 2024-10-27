@@ -90,7 +90,7 @@ export default function CreateListingPage() {
         category: selectedCategory,
         sellerId: userProfile.id,
         sellerName: `${userProfile.firstName || 'Unknown'} ${userProfile.lastName || ''}`,
-        sellerAvatar: userProfile.avatar || 'https://example.com/default-avatar.png',
+        sellerAvatar: userProfile.avatar || '',
         createdAt: new Date(),
       };
   
