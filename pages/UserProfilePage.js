@@ -142,7 +142,7 @@ export default function UserProfilePage({ route, navigation }) {
         </View>
       ) : (
         <View style={styles.friendsSection}>
-          <Text>No friends yet.</Text>
+          <Text style={styles.noTransactions}>No friends yet.</Text>
         </View>
       )}
     </ScrollView>
