@@ -14,15 +14,7 @@ export default function SearchPage() {
   const [filteredResults, setFilteredResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [recentSearches, setRecentSearches] = useState([]); // Store recent searches
-  const [currentUserId, setCurrentUserId] = useState(null);
-
-  useEffect(() => {
-    if (auth.currentUser) {
-      setCurrentUserId(auth.currentUser.uid);
-    } else {
-      console.warn("No authenticated user found.");
-    }
-  }, [auth.currentUser]);
+  const currentUserId = auth.currentUser?.uid; // Get the current user's ID
 
   const searchUsersAndItems = async () => {
     if (!currentUserId || !searchTerm.trim()) return;
@@ -32,11 +24,24 @@ export default function SearchPage() {
     const itemsRef = collection(db, 'marketplace');
     const searchResults = [];
 
-    const userQuery = query(
-      usersRef,
-      where('firstName', '>=', searchTerm),
-      where('firstName', '<=', searchTerm + '\uf8ff')
-    );
+    let userQuery;
+    if (searchTerm.startsWith('@')) {
+      // Search by username if the term starts with '@'
+      const usernameQuery = searchTerm.substring(1).toLowerCase();
+      userQuery = query(
+        usersRef,
+        where('username', '>=', `@${usernameQuery}`),
+        where('username', '<=', `@${usernameQuery}\uf8ff`)
+      );
+    } else {
+      // Otherwise, search by first name
+      const [firstName, lastName] = searchTerm.split(' ');
+      if (lastName) {
+        userQuery = query(usersRef, where('firstName', '>=', firstName), where('lastName', '>=', lastName));
+      } else {
+        userQuery = query(usersRef, where('firstName', '>=', firstName), where('firstName', '<=', firstName + '\uf8ff'));
+      }
+    }
 
     const itemQuery = query(
       itemsRef,
@@ -48,45 +53,50 @@ export default function SearchPage() {
       const userSnapshot = await getDocs(userQuery);
       const itemSnapshot = await getDocs(itemQuery);
 
-      // Fetch user data and their avatars
-      const userResults = await Promise.all(userSnapshot.docs.map(async (doc) => {
-        const userData = { id: doc.id, ...doc.data(), type: 'user' };
+      // Fetch user data and their avatars, excluding the current user
+      const userResults = await Promise.all(
+        userSnapshot.docs.map(async (doc) => {
+          const userData = { id: doc.id, ...doc.data(), type: 'user' };
 
-        if (userData.id !== currentUserId) {
-          if (userData.avatar) {
-            try {
-              const avatarRef = ref(storage, userData.avatar);
-              const avatarUrl = await getDownloadURL(avatarRef);
-              userData.avatarUrl = avatarUrl;
-            } catch (error) {
-              console.warn(`Failed to fetch avatar for user ${userData.id}:`, error);
+          if (userData.id !== currentUserId) {
+            if (userData.avatar) {
+              try {
+                const avatarRef = ref(storage, userData.avatar);
+                const avatarUrl = await getDownloadURL(avatarRef);
+                userData.avatarUrl = avatarUrl;
+              } catch (error) {
+                console.warn(`Failed to fetch avatar for user ${userData.id}:`, error);
+                userData.avatarUrl = Image.resolveAssetSource(fallbackAvatar).uri;
+              }
+            } else {
               userData.avatarUrl = Image.resolveAssetSource(fallbackAvatar).uri;
             }
-          } else {
-            userData.avatarUrl = Image.resolveAssetSource(fallbackAvatar).uri;
+            return userData;
           }
-          return userData;
-        }
-      }));
+          return null;
+        })
+      );
 
       // Fetch item data and their images
-      const itemResults = await Promise.all(itemSnapshot.docs.map(async (doc) => {
-        const itemData = { id: doc.id, ...doc.data(), type: 'item' };
+      const itemResults = await Promise.all(
+        itemSnapshot.docs.map(async (doc) => {
+          const itemData = { id: doc.id, ...doc.data(), type: 'item' };
 
-        if (itemData.imageUrl) {
-          try {
-            const imageRef = ref(storage, itemData.imageUrl);
-            itemData.imageUrl = await getDownloadURL(imageRef);
-          } catch (error) {
-            console.warn(`Failed to fetch image for item ${itemData.id}:`, error);
-            itemData.imageUrl = null; // Handle error gracefully
+          if (itemData.imageUrl) {
+            try {
+              const imageRef = ref(storage, itemData.imageUrl);
+              itemData.imageUrl = await getDownloadURL(imageRef);
+            } catch (error) {
+              console.warn(`Failed to fetch image for item ${itemData.id}:`, error);
+              itemData.imageUrl = null;
+            }
           }
-        }
-        return itemData;
-      }));
+          return itemData;
+        })
+      );
 
-      // Combine user and item results
-      const results = [...userResults, ...itemResults].filter(Boolean); // Filter out undefined values
+      // Combine and filter out null user results (the current user)
+      const results = [...userResults.filter(Boolean), ...itemResults]; // Filter out null values
       setFilteredResults(results);
 
       // Update recent searches only when a complete search is submitted
@@ -124,7 +134,7 @@ export default function SearchPage() {
           placeholder="Search for items or users"
           value={searchTerm}
           onChangeText={setSearchTerm}
-          onSubmitEditing={handleSubmitSearch} // Trigger search on Enter
+          onSubmitEditing={handleSubmitSearch}
           onFocus={() => setIsSearching(true)}
           onBlur={() => setIsSearching(false)}
         />
@@ -152,15 +162,12 @@ export default function SearchPage() {
               {item.type === 'user' ? (
                 <Avatar.Image
                   size={50}
-                  source={{ uri: item.avatarUrl }} // Ensure this is always a string
+                  source={{ uri: item.avatarUrl }}
                   style={styles.avatar}
                 />
               ) : (
                 item.imageUrl ? (
-                  <Image
-                    source={{ uri: item.imageUrl }} // Ensure this is always a string
-                    style={styles.itemImage}
-                  />
+                  <Image source={{ uri: item.imageUrl }} style={styles.itemImage} />
                 ) : (
                   <Ionicons name="image-outline" size={40} color="#888" />
                 )
