@@ -1,13 +1,16 @@
-import React, { useContext } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from 'react-native-paper';
 import { UserContext } from '../UserContext'; // Import UserContext
+import { getDownloadURL, ref } from 'firebase/storage'; // Import Firebase storage functions
+import { storage } from '../firebaseConfig'; // Import Firebase config
 import fallbackAvatar from '../assets/avatar.png'; // Ensure you have a fallback avatar imported
 
 export default function ItemPage({ route }) {
   const { item } = route.params;
-  const { userProfile, addToCart, removeFromCart, cart } = useContext(UserContext); // Access cart and addToCart function
+  const { userProfile, addToCart, cart } = useContext(UserContext); // Access cart and addToCart function
+  const [sellerAvatarUrl, setSellerAvatarUrl] = useState(null); // State to store full seller avatar URL
 
   // Check if the current user is the seller of this item
   const isSeller = item.sellerId === userProfile.id;
@@ -25,6 +28,23 @@ export default function ItemPage({ route }) {
       Alert.alert("Unavailable", "You've added the maximum available quantity of this item to your cart.");
     }
   };
+
+  // Fetch seller's avatar URL if it's a relative path in Firebase Storage
+  useEffect(() => {
+    const fetchSellerAvatarUrl = async () => {
+      if (item.sellerAvatar) {
+        try {
+          const avatarRef = ref(storage, item.sellerAvatar); // Use relative path from item.sellerAvatar
+          const url = await getDownloadURL(avatarRef);
+          setSellerAvatarUrl(url); // Store the full download URL
+        } catch (error) {
+          console.error('Error fetching seller avatar URL:', error);
+        }
+      }
+    };
+
+    fetchSellerAvatarUrl();
+  }, [item.sellerAvatar]);
 
   return (
     <ScrollView contentContainerStyle={styles.scrollContainer}>
@@ -45,7 +65,7 @@ export default function ItemPage({ route }) {
           <View style={styles.sellerInfo}>
             <Avatar.Image 
               size={50} 
-              source={item.sellerAvatar ? { uri: item.sellerAvatar } : fallbackAvatar} 
+              source={sellerAvatarUrl ? { uri: sellerAvatarUrl } : fallbackAvatar} 
               style={styles.avatar} 
             />
             <View style={styles.sellerDetails}>

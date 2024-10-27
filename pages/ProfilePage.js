@@ -1,14 +1,34 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Platform } from 'react-native';
 import { Ionicons } from 'react-native-vector-icons';
 import { Avatar } from 'react-native-paper';
 import { UserContext } from '../UserContext';
+import { getDownloadURL, ref } from 'firebase/storage'; // Import Firebase storage functions
+import { storage } from '../firebaseConfig'; // Import Firebase config
 
 const avatarPlaceholder = require('../assets/avatar.png');
 
 export default function ProfilePage({ navigation }) {
   const { userProfile } = useContext(UserContext);
   const [selectedTab, setSelectedTab] = useState('wallet');
+  const [avatarUrl, setAvatarUrl] = useState(null); // State to store full avatar URL
+
+  // Fetch the avatar URL from Firebase Storage if userProfile.avatar is a relative path
+  useEffect(() => {
+    const fetchAvatarUrl = async () => {
+      if (userProfile.avatar) {
+        try {
+          const avatarRef = ref(storage, userProfile.avatar);
+          const url = await getDownloadURL(avatarRef);
+          setAvatarUrl(url); // Store the full download URL
+        } catch (error) {
+          console.error('Error fetching avatar URL:', error);
+        }
+      }
+    };
+
+    fetchAvatarUrl();
+  }, [userProfile.avatar]);
 
   const handleTabSwitch = (tab) => {
     setSelectedTab(tab);
@@ -54,7 +74,7 @@ export default function ProfilePage({ navigation }) {
         {/* Avatar and User Info */}
         <Avatar.Image
           size={90}
-          source={userProfile.avatar ? { uri: userProfile.avatar } : avatarPlaceholder}
+          source={avatarUrl ? { uri: avatarUrl } : avatarPlaceholder} // Use avatarUrl if available
           style={styles.avatar}
         />
         <Text style={styles.name}>{`${userProfile.firstName} ${userProfile.lastName}`}</Text>

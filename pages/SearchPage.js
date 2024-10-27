@@ -4,7 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db, auth } from '../firebaseConfig';
+import { db, storage, auth } from '../firebaseConfig'; // Import Firebase storage as well
+import { getDownloadURL, ref } from 'firebase/storage'; // Import getDownloadURL
 import fallbackAvatar from '../assets/avatar.png';
 
 export default function SearchPage() {
@@ -47,13 +48,26 @@ export default function SearchPage() {
       const userSnapshot = await getDocs(userQuery);
       const itemSnapshot = await getDocs(itemQuery);
 
-      userSnapshot.forEach((doc) => {
+      // Fetch user data and their avatars
+      for (const doc of userSnapshot.docs) {
         const userData = { id: doc.id, ...doc.data(), type: 'user' };
         if (userData.id !== currentUserId) {
+          if (userData.avatar) {
+            const avatarRef = ref(storage, userData.avatar); // Reference to the user's avatar in Firebase Storage
+            try {
+              userData.avatarUrl = await getDownloadURL(avatarRef); // Get the full download URL
+            } catch (error) {
+              console.warn(`Failed to fetch avatar for user ${userData.id}:`, error);
+              userData.avatarUrl = fallbackAvatar; // Use fallback in case of an error
+            }
+          } else {
+            userData.avatarUrl = fallbackAvatar; // Use fallback avatar if no avatar is provided
+          }
           searchResults.push(userData);
         }
-      });
+      }
 
+      // Fetch item data
       itemSnapshot.forEach((doc) => {
         searchResults.push({ id: doc.id, ...doc.data(), type: 'item' });
       });
@@ -123,7 +137,7 @@ export default function SearchPage() {
               {item.type === 'user' ? (
                 <Avatar.Image
                   size={50}
-                  source={item.avatar ? { uri: item.avatar } : fallbackAvatar}
+                  source={item.avatarUrl ? { uri: item.avatarUrl } : fallbackAvatar}
                   style={styles.avatar}
                 />
               ) : (

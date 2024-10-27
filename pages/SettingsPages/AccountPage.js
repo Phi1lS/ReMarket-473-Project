@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { View, Text, TextInput, Image, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -17,24 +17,22 @@ export default function AccountPage() {
   const [username, setUsername] = useState(userProfile.username);
   const [email, setEmail] = useState(userProfile.email);
   const [avatar, setAvatar] = useState(userProfile.avatar || null); // Local state for avatar
+  const [avatarUrl, setAvatarUrl] = useState(null); // Full URL for avatar
   const [uploading, setUploading] = useState(false); // To track the upload process
 
   // Save button handler to update Firestore and UserContext
   const handleSave = async () => {
     try {
-      // Reference to the user's document in Firestore
       const userRef = doc(db, 'users', auth.currentUser.uid);
 
-      // Update Firestore document with new profile data
       await setDoc(userRef, {
         firstName,
         lastName,
         username,
         email,
-        avatar, // Save avatar URL if provided
+        avatar, // Save avatar relative path
       }, { merge: true });
 
-      // Update UserContext
       setUserProfile({
         ...userProfile,
         firstName,
@@ -51,29 +49,42 @@ export default function AccountPage() {
     }
   };
 
+  // Fetch the full download URL for the avatar
+  useEffect(() => {
+    if (avatar) {
+      const fetchAvatarUrl = async () => {
+        try {
+          const avatarRef = ref(storage, avatar); // Avatar relative path
+          const url = await getDownloadURL(avatarRef);
+          setAvatarUrl(url); // Set the full download URL
+        } catch (error) {
+          console.error('Error fetching avatar URL:', error);
+        }
+      };
+      fetchAvatarUrl();
+    }
+  }, [avatar]);
+
   // Handle picking an image
   const pickImage = async () => {
     try {
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  
-      if (permissionResult.granted === false) {
+
+      if (!permissionResult.granted) {
         Alert.alert('Permission Denied', 'Permission to access camera roll is required!');
         return;
       }
-  
+
       let result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
         quality: 1,
       });
-  
-      console.log('Image Picker Result:', result); // Log the result to ensure we get a valid image URI
-  
+
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const uri = result.assets[0].uri; // Access the image URI correctly from assets array
-        console.log('Selected image URI:', uri);
-        uploadImage(uri); // Pass the image URI to the upload function
+        const uri = result.assets[0].uri;
+        uploadImage(uri); // Upload the selected image
       } else {
         Alert.alert('Error', 'Unable to pick an image. Please try again.');
       }
@@ -89,9 +100,9 @@ export default function AccountPage() {
     try {
       const response = await fetch(uri);
       const blob = await response.blob();
-      console.log('Blob successfully created.');
 
-      const avatarRef = ref(storage, `avatars/${auth.currentUser.uid}.jpg`);
+      const avatarPath = `avatars/${auth.currentUser.uid}.jpg`; // Relative path for the avatar
+      const avatarRef = ref(storage, avatarPath);
 
       const uploadTask = uploadBytesResumable(avatarRef, blob);
 
@@ -105,13 +116,8 @@ export default function AccountPage() {
           Alert.alert('Error', 'Failed to upload image. Please try again.');
         },
         async () => {
-          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-          console.log('Download URL obtained:', downloadURL);
-
-          // Update avatar in state and Firestore
-          setAvatar(downloadURL);
-          await setDoc(doc(db, 'users', auth.currentUser.uid), { avatar: downloadURL }, { merge: true });
-
+          await setDoc(doc(db, 'users', auth.currentUser.uid), { avatar: avatarPath }, { merge: true });
+          setAvatar(avatarPath); // Save the relative path to Firestore
           Alert.alert('Success', 'Profile picture updated.');
         }
       );
@@ -128,11 +134,7 @@ export default function AccountPage() {
       {/* Profile Picture */}
       <View style={styles.profilePictureContainer}>
         <Image
-          source={
-            avatar
-              ? { uri: avatar } // Use the avatar URL if available
-              : require('../../assets/avatar.png') // Fallback to local avatar.png
-          }
+          source={avatarUrl ? { uri: avatarUrl } : require('../../assets/avatar.png')}
           style={styles.profilePicture}
         />
         {/* Pencil Icon to pick a new profile picture */}
@@ -144,41 +146,25 @@ export default function AccountPage() {
       {/* First Name Field */}
       <View style={styles.fieldContainer}>
         <Text style={styles.label}>First Name</Text>
-        <TextInput
-          style={styles.input}
-          value={firstName}
-          onChangeText={setFirstName}
-        />
+        <TextInput style={styles.input} value={firstName} onChangeText={setFirstName} />
       </View>
 
       {/* Last Name Field */}
       <View style={styles.fieldContainer}>
         <Text style={styles.label}>Last Name</Text>
-        <TextInput
-          style={styles.input}
-          value={lastName}
-          onChangeText={setLastName}
-        />
+        <TextInput style={styles.input} value={lastName} onChangeText={setLastName} />
       </View>
 
       {/* Username Field */}
       <View style={styles.fieldContainer}>
         <Text style={styles.label}>Username</Text>
-        <TextInput
-          style={styles.input}
-          value={username}
-          onChangeText={setUsername}
-        />
+        <TextInput style={styles.input} value={username} onChangeText={setUsername} />
       </View>
 
       {/* Email Field */}
       <View style={styles.fieldContainer}>
         <Text style={styles.label}>Email</Text>
-        <TextInput
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-        />
+        <TextInput style={styles.input} value={email} onChangeText={setEmail} />
       </View>
 
       {/* Save Button */}

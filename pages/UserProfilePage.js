@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from 'react-native';
 import { Avatar } from 'react-native-paper';
 import { Ionicons } from 'react-native-vector-icons';
+import { UserContext } from '../UserContext'; // Import UserContext
+import { getDownloadURL, ref } from 'firebase/storage'; // Import Firebase storage functions
+import { db, storage } from '../firebaseConfig'; // Import Firebase config
+import fallbackAvatar from '../assets/avatar.png'; // Ensure you have a fallback avatar imported
 import { doc, getDoc, collection, onSnapshot } from 'firebase/firestore';
-import { db } from '../firebaseConfig';
-import fallbackAvatar from '../assets/avatar.png'; // Import the fallback avatar
 
 export default function UserProfilePage({ route, navigation }) {
   const { userId } = route.params;
@@ -12,6 +14,7 @@ export default function UserProfilePage({ route, navigation }) {
   const [selectedTab, setSelectedTab] = useState('activity');
   const [loading, setLoading] = useState(true);
   const [purchases, setPurchases] = useState([]);
+  const [userAvatarUrl, setUserAvatarUrl] = useState(null); // State to store user's avatar URL
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -24,7 +27,17 @@ export default function UserProfilePage({ route, navigation }) {
         const userDoc = await getDoc(doc(db, 'users', userId));
 
         if (userDoc.exists()) {
-          setUser(userDoc.data());
+          const userData = userDoc.data();
+          setUser(userData);
+
+          // If avatar is a relative path, fetch the full URL
+          if (userData.avatar) {
+            const avatarRef = ref(storage, userData.avatar);
+            const avatarUrl = await getDownloadURL(avatarRef);
+            setUserAvatarUrl(avatarUrl); // Store the full avatar URL
+          } else {
+            setUserAvatarUrl(null); // Use fallback if no avatar is available
+          }
         } else {
           console.error('No such user exists in Firestore.');
         }
@@ -97,7 +110,7 @@ export default function UserProfilePage({ route, navigation }) {
       <View style={styles.header}>
         <Avatar.Image 
           size={90} 
-          source={user.avatar ? { uri: user.avatar } : fallbackAvatar} 
+          source={userAvatarUrl ? { uri: userAvatarUrl } : fallbackAvatar} 
           style={styles.avatar} 
         />
         <Text style={styles.name}>
