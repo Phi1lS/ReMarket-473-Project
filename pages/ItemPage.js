@@ -46,6 +46,8 @@ export default function ItemPage({ route }) {
     fetchSellerAvatarUrl();
   }, [item.sellerAvatar]);
 
+  const isOutOfStock = item.quantity <= 0;
+
   return (
     <ScrollView contentContainerStyle={styles.scrollContainer}>
       <View style={styles.container}>
@@ -76,9 +78,18 @@ export default function ItemPage({ route }) {
 
         {/* Add to Cart Button */}
         {!isSeller && (
-          <TouchableOpacity style={styles.addToCartButton} onPress={handleAddToCart}>
+          <TouchableOpacity
+            style={[
+              styles.addToCartButton,
+              isOutOfStock && styles.disabledButton, // Apply disabled style if out of stock
+            ]}
+            onPress={handleAddToCart}
+            disabled={isOutOfStock} // Disable button if out of stock
+          >
             <Ionicons name="cart-outline" size={24} color="#fff" />
-            <Text style={styles.addToCartText}>Add to Cart</Text>
+            <Text style={styles.addToCartText}>
+              {isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
+            </Text>
           </TouchableOpacity>
         )}
 
@@ -165,6 +176,9 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 10,
     marginTop: 20,
+  },
+  disabledButton: {
+    backgroundColor: '#ccc', // Gray color for disabled state
   },
   addToCartText: {
     color: '#fff',
