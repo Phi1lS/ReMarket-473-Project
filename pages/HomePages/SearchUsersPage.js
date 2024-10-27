@@ -12,6 +12,7 @@ export default function SearchUsersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+  const currentUserId = auth.currentUser?.uid; // Get the current user's ID
 
   const searchUsers = async () => {
     if (!searchTerm.trim()) return;
@@ -37,6 +38,10 @@ export default function SearchUsersPage() {
       const usersData = await Promise.all(querySnapshot.docs.map(async (doc) => {
         const userData = { id: doc.id, ...doc.data() };
 
+        // Skip current user
+        if (userData.id === currentUserId) return null;
+
+        // Fetch avatar URL
         if (userData.avatar) {
           try {
             const avatarRef = ref(storage, userData.avatar);
@@ -44,16 +49,17 @@ export default function SearchUsersPage() {
             userData.avatarUrl = avatarUrl;
           } catch (error) {
             console.warn(`Failed to fetch avatar for user ${userData.id}:`, error);
-            userData.avatarUrl = Image.resolveAssetSource(fallbackAvatar).uri; // Resolve the fallback image path
+            userData.avatarUrl = Image.resolveAssetSource(fallbackAvatar).uri;
           }
         } else {
-          userData.avatarUrl = Image.resolveAssetSource(fallbackAvatar).uri; // Resolve the fallback image path
+          userData.avatarUrl = Image.resolveAssetSource(fallbackAvatar).uri;
         }
 
         return userData;
       }));
 
-      setFilteredUsers(usersData);
+      // Filter out null values (current user) and update state
+      setFilteredUsers(usersData.filter(user => user !== null));
     } catch (error) {
       console.error('Error fetching users:', error);
     } finally {
