@@ -18,7 +18,11 @@ export default function NotificationsPage() {
         id: doc.id,
         ...doc.data(),
       }));
-      setNotifications(notificationsData);
+
+      // Sort notifications from most recent to oldest using timestamp
+      const sortedNotifications = notificationsData.sort((a, b) => b.timestamp.seconds - a.timestamp.seconds);
+
+      setNotifications(sortedNotifications);
     });
 
     // Cleanup listener on unmount
