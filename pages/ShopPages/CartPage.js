@@ -1,26 +1,53 @@
-import React, { useContext } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, Image, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { FAB } from 'react-native-paper';
 import { UserContext } from '../../UserContext';
 import { useNavigation } from '@react-navigation/native';
+import { getDownloadURL, ref } from 'firebase/storage'; // Import Firebase storage functions
+import { storage } from '../../firebaseConfig'; // Import Firebase config
 
 export default function CartPage() {
   const { cart, items, removeFromCart } = useContext(UserContext);
+  const [cartItemsWithImages, setCartItemsWithImages] = useState([]);
   const navigation = useNavigation();
 
-  // Retrieve item details for each cart item
-  const cartItemsWithDetails = cart.map((cartItem) => {
-    const itemDetails = items.find((item) => item.id === cartItem.itemId);
-    return itemDetails ? { ...itemDetails, quantity: cartItem.quantity } : null;
-  }).filter(Boolean);
+  // Retrieve item details and images for each cart item
+  useEffect(() => {
+    const fetchCartItemsWithImages = async () => {
+      const cartItems = cart.map((cartItem) => {
+        const itemDetails = items.find((item) => item.id === cartItem.itemId);
+        return itemDetails ? { ...itemDetails, quantity: cartItem.quantity } : null;
+      }).filter(Boolean);
+
+      const itemsWithImages = await Promise.all(
+        cartItems.map(async (item) => {
+          if (item.imageUrl) {
+            const imageRef = ref(storage, item.imageUrl); // Reference to the item's image in Firebase Storage
+            try {
+              const imageUrl = await getDownloadURL(imageRef); // Fetch the full image URL
+              return { ...item, imageUrl }; // Add the full image URL to the item
+            } catch (error) {
+              console.warn(`Failed to fetch image for item ${item.id}:`, error);
+              return item; // Return item without updating imageUrl if there's an error
+            }
+          }
+          return item; // Return item if no image URL is provided
+        })
+      );
+
+      setCartItemsWithImages(itemsWithImages);
+    };
+
+    fetchCartItemsWithImages();
+  }, [cart, items]);
 
   // Calculate total price
-  const totalPrice = cartItemsWithDetails.reduce((total, item) => total + item.price * item.quantity, 0);
+  const totalPrice = cartItemsWithImages.reduce((total, item) => total + item.price * item.quantity, 0);
 
   // Handle checkout navigation
   const handleCheckout = () => {
-    if (cartItemsWithDetails.length > 0) {
+    if (cartItemsWithImages.length > 0) {
       navigation.navigate('CheckoutPage');
     } else {
       Alert.alert('Your cart is empty', 'Please add items to your cart before proceeding to checkout.');
@@ -45,7 +72,7 @@ export default function CartPage() {
     <View style={styles.container}>
       {/* Cart Items */}
       <FlatList
-        data={cartItemsWithDetails}
+        data={cartItemsWithImages}
         renderItem={renderCartItem}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.cartList}
@@ -61,13 +88,13 @@ export default function CartPage() {
       <FAB
         style={[
           styles.checkoutFAB,
-          cartItemsWithDetails.length === 0 && styles.disabledFAB
+          cartItemsWithImages.length === 0 && styles.disabledFAB
         ]}
         label="Checkout"
         icon="cart"
         onPress={handleCheckout}
         color="white"
-        disabled={cartItemsWithDetails.length === 0}
+        disabled={cartItemsWithImages.length === 0}
       />
     </View>
   );

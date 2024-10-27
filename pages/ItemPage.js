@@ -11,6 +11,7 @@ export default function ItemPage({ route }) {
   const { item } = route.params;
   const { userProfile, addToCart, cart } = useContext(UserContext); // Access cart and addToCart function
   const [sellerAvatarUrl, setSellerAvatarUrl] = useState(null); // State to store full seller avatar URL
+  const [itemImageUrl, setItemImageUrl] = useState(item.imageUrl); // State for item image URL
 
   // Check if the current user is the seller of this item
   const isSeller = item.sellerId === userProfile.id;
@@ -43,8 +44,21 @@ export default function ItemPage({ route }) {
       }
     };
 
+    const fetchItemImageUrl = async () => {
+      if (item.imageUrl) {
+        try {
+          const imageRef = ref(storage, item.imageUrl); // Use relative path from item.imageUrl
+          const url = await getDownloadURL(imageRef);
+          setItemImageUrl(url); // Store the full download URL
+        } catch (error) {
+          console.error('Error fetching item image URL:', error);
+        }
+      }
+    };
+
     fetchSellerAvatarUrl();
-  }, [item.sellerAvatar]);
+    fetchItemImageUrl();
+  }, [item.sellerAvatar, item.imageUrl]);
 
   const isOutOfStock = item.quantity <= 0;
 
@@ -52,7 +66,7 @@ export default function ItemPage({ route }) {
     <ScrollView contentContainerStyle={styles.scrollContainer}>
       <View style={styles.container}>
         {/* Item Image */}
-        <Image source={{ uri: item.imageUrl }} style={styles.itemImage} />
+        <Image source={{ uri: itemImageUrl }} style={styles.itemImage} />
 
         {/* Item Details */}
         <View style={styles.detailsContainer}>

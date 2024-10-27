@@ -41,36 +41,43 @@ export default function CreateListingPage() {
     }
   };
 
-  const uploadImage = async (uri) => {
+  // Upload image and return the relative path
+  const uploadImage = async (uri, sellerId, marketplaceId) => {
     if (!uri) {
       throw new Error('Image URI is undefined');
     }
-
+  
     setUploading(true);
-    const response = await fetch(uri);
-    const blob = await response.blob();
-    const imageRef = ref(storage, `listings/${userProfile?.id || 'unknown_user'}/${Date.now()}.jpg`);
-
-    const uploadTask = uploadBytesResumable(imageRef, blob);
-
-    return new Promise((resolve, reject) => {
-      uploadTask.on(
-        'state_changed',
-        (snapshot) => {
-          console.log(`Upload progress: ${snapshot.bytesTransferred}/${snapshot.totalBytes}`);
-        },
-        (error) => {
-          console.error('Upload failed:', error);
-          setUploading(false);
-          reject(error);
-        },
-        async () => {
-          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-          setUploading(false);
-          resolve(downloadURL);
-        }
-      );
-    });
+    try {
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      const imageRef = ref(storage, `listings/${sellerId}/${marketplaceId}.jpg`); // Set the relative path
+  
+      const uploadTask = uploadBytesResumable(imageRef, blob);
+  
+      return new Promise((resolve, reject) => {
+        uploadTask.on(
+          'state_changed',
+          (snapshot) => {
+            console.log(`Upload progress: ${snapshot.bytesTransferred}/${snapshot.totalBytes}`);
+          },
+          (error) => {
+            console.error('Upload failed:', error);
+            setUploading(false);
+            reject(error);
+          },
+          async () => {
+            // Save only the relative path
+            setUploading(false);
+            resolve(`listings/${sellerId}/${marketplaceId}.jpg`);
+          }
+        );
+      });
+    } catch (error) {
+      console.error('Error during image upload:', error);
+      setUploading(false);
+      throw error;
+    }
   };
 
   const handleCreateListing = async () => {
@@ -80,10 +87,8 @@ export default function CreateListingPage() {
     }
   
     try {
-      const imageUrl = await uploadImage(image);
-  
+      // Create the listing without the imageUrl
       const listingData = {
-        imageUrl,
         description,
         price: parseFloat(price),
         quantity: parseInt(quantity, 10),
@@ -94,20 +99,28 @@ export default function CreateListingPage() {
         createdAt: new Date(),
       };
   
-      // Add listing to the user's subcollection and get the auto-generated Firestore ID
+      // Add listing to Firestore and get the new listing ID
       const userListingRef = await addDoc(collection(db, 'users', userProfile.id, 'listings'), listingData);
       const listingId = userListingRef.id;
   
-      // Update listing data with the Firestore ID
-      const listingWithId = { ...listingData, id: listingId };
+      // Upload the image and get the relative path
+      const imageUrl = await uploadImage(image, userProfile.id, listingId);
   
-      // Use the same ID in the marketplace collection
-      await setDoc(doc(db, 'marketplace', listingId), listingWithId);
+      // Update the listing with the imageUrl (relative path)
+      const listingWithImageUrl = {
+        ...listingData,
+        id: listingId,
+        imageUrl,
+      };
   
-      // Update the user profile context
+      // Save the updated listing to both the user's listings and the marketplace
+      await setDoc(doc(db, 'users', userProfile.id, 'listings', listingId), listingWithImageUrl, { merge: true });
+      await setDoc(doc(db, 'marketplace', listingId), listingWithImageUrl, { merge: true });
+  
+      // Update the user profile context with the new listing
       setUserProfile((prevProfile) => ({
         ...prevProfile,
-        listings: [...(prevProfile.listings || []), listingWithId],
+        listings: [...(prevProfile.listings || []), listingWithImageUrl],
       }));
   
       Alert.alert('Success', 'Listing created successfully!');

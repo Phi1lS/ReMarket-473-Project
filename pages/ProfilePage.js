@@ -12,6 +12,7 @@ export default function ProfilePage({ navigation }) {
   const { userProfile } = useContext(UserContext);
   const [selectedTab, setSelectedTab] = useState('wallet');
   const [avatarUrl, setAvatarUrl] = useState(null); // State to store full avatar URL
+  const [purchasesWithImages, setPurchasesWithImages] = useState([]); // Store purchases with images
 
   // Fetch the avatar URL from Firebase Storage if userProfile.avatar is a relative path
   useEffect(() => {
@@ -29,6 +30,30 @@ export default function ProfilePage({ navigation }) {
 
     fetchAvatarUrl();
   }, [userProfile.avatar]);
+
+  // Fetch image URLs for each purchase
+  useEffect(() => {
+    const fetchPurchaseImages = async () => {
+      const purchases = await Promise.all(
+        userProfile.purchases.map(async (purchase) => {
+          if (purchase.imageUrl) {
+            try {
+              const imageRef = ref(storage, purchase.imageUrl);
+              const imageUrl = await getDownloadURL(imageRef);
+              return { ...purchase, imageUrl }; // Attach the full image URL to the purchase
+            } catch (error) {
+              console.warn(`Failed to fetch image for purchase ${purchase.id}:`, error);
+              return purchase; // Return the purchase without updating the imageUrl in case of error
+            }
+          }
+          return purchase; // Return purchase if no imageUrl is provided
+        })
+      );
+      setPurchasesWithImages(purchases);
+    };
+
+    fetchPurchaseImages();
+  }, [userProfile.purchases]);
 
   const handleTabSwitch = (tab) => {
     setSelectedTab(tab);
@@ -116,8 +141,8 @@ export default function ProfilePage({ navigation }) {
         </View>
       ) : (
         <View style={styles.purchasesSection}>
-          {userProfile.purchases.length > 0 ? (
-            sortPurchasesByDate(userProfile.purchases).map((item) => renderPurchaseItem(item))
+          {purchasesWithImages.length > 0 ? (
+            sortPurchasesByDate(purchasesWithImages).map((item) => renderPurchaseItem(item))
           ) : (
             <Text style={styles.noTransactions}>No purchases to show.</Text>
           )}

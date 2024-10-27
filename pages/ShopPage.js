@@ -2,8 +2,8 @@ import React, { useContext, useState, useEffect } from 'react';
 import { View, FlatList, StyleSheet, TouchableOpacity, TextInput, ScrollView, Text, Image, Platform, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '../firebaseConfig';
+import { getDownloadURL, ref } from 'firebase/storage'; // Import Firebase storage functions
+import { db, storage } from '../firebaseConfig';
 import { UserContext } from '../UserContext'; // Import UserContext
 
 const categories = [
@@ -15,11 +15,30 @@ export default function ShopPage() {
   const navigation = useNavigation();
   const { items } = useContext(UserContext);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredItems, setFilteredItems] = useState(items);
+  const [filteredItems, setFilteredItems] = useState([]);
+  const [itemImages, setItemImages] = useState({}); // Store image URLs
 
   useEffect(() => {
     setFilteredItems(items);
+    fetchItemImages(items); // Fetch images when items change
   }, [items]);
+
+  // Function to fetch the image URLs for the items
+  const fetchItemImages = async (items) => {
+    const imageMap = {};
+    for (const item of items) {
+      if (item.imageUrl) {
+        try {
+          const imageRef = ref(storage, item.imageUrl); // Use relative path
+          const downloadURL = await getDownloadURL(imageRef);
+          imageMap[item.id] = downloadURL; // Map item id to its image URL
+        } catch (error) {
+          console.error(`Error fetching image for item ${item.id}:`, error);
+        }
+      }
+    }
+    setItemImages(imageMap); // Update state with image URLs
+  };
 
   const handleSearch = (query) => {
     setSearchQuery(query);
@@ -54,8 +73,12 @@ export default function ShopPage() {
             style={styles.itemContainer}
             onPress={() => navigation.navigate('ItemPage', { item })}
           >
-            <Image source={{ uri: item.imageUrl }} style={styles.itemImage} />
-            {/* Wrap item description inside Text component */}
+            {/* Use the fetched image URL from the itemImages state */}
+            {itemImages[item.id] ? (
+              <Image source={{ uri: itemImages[item.id] }} style={styles.itemImage} />
+            ) : (
+              <Text>Loading...</Text>
+            )}
             <Text style={styles.itemName}>{item.description}</Text>
           </TouchableOpacity>
         )}
@@ -107,7 +130,6 @@ export default function ShopPage() {
               style={styles.categoryButton}
               onPress={() => navigation.navigate('CategoryPage', { category })} // Navigate to CategoryPage
             >
-              {/* Wrap category name inside Text component */}
               <Text style={styles.categoryText}>{category}</Text>
             </TouchableOpacity>
           ))}

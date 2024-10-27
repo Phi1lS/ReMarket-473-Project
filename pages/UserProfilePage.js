@@ -15,6 +15,7 @@ export default function UserProfilePage({ route, navigation }) {
   const [loading, setLoading] = useState(true);
   const [purchases, setPurchases] = useState([]);
   const [userAvatarUrl, setUserAvatarUrl] = useState(null); // State to store user's avatar URL
+  const [purchasesWithImages, setPurchasesWithImages] = useState([]); // State to store purchases with images
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -67,6 +68,32 @@ export default function UserProfilePage({ route, navigation }) {
       unsubscribePurchases();
     };
   }, [userId]);
+
+  useEffect(() => {
+    // Fetch image URLs for each purchase
+    const fetchPurchaseImages = async () => {
+      const purchasesWithImagesList = await Promise.all(
+        purchases.map(async (purchase) => {
+          if (purchase.imageUrl) {
+            try {
+              const imageRef = ref(storage, purchase.imageUrl);
+              const fullImageUrl = await getDownloadURL(imageRef);
+              return { ...purchase, imageUrl: fullImageUrl }; // Add full image URL to the purchase
+            } catch (error) {
+              console.warn(`Failed to fetch image for purchase ${purchase.id}:`, error);
+              return purchase; // Return purchase without updating imageUrl on error
+            }
+          }
+          return purchase; // Return purchase if no imageUrl is provided
+        })
+      );
+      setPurchasesWithImages(purchasesWithImagesList);
+    };
+
+    if (purchases.length > 0) {
+      fetchPurchaseImages();
+    }
+  }, [purchases]);
 
   // Function to sort purchases by timestamp (from most recent to oldest)
   const sortPurchasesByDate = (purchases) => {
@@ -147,8 +174,8 @@ export default function UserProfilePage({ route, navigation }) {
 
       {selectedTab === 'activity' ? (
         <View style={styles.activitySection}>
-          {purchases.length > 0 ? (
-            sortPurchasesByDate(purchases).map((item) => renderPurchaseItem(item))
+          {purchasesWithImages.length > 0 ? (
+            sortPurchasesByDate(purchasesWithImages).map((item) => renderPurchaseItem(item))
           ) : (
             <Text style={styles.noTransactions}>No purchases to show.</Text>
           )}

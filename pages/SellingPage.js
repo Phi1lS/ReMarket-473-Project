@@ -1,35 +1,60 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { View, FlatList, Text, Image, StyleSheet, TouchableOpacity, Alert, Platform, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { UserContext } from '../UserContext';
-import { db } from '../firebaseConfig';
-import { getDoc, doc, deleteDoc } from 'firebase/firestore';
+import { db, storage } from '../firebaseConfig';
+import { collection, query, where, getDocs, getDoc, doc, deleteDoc } from 'firebase/firestore';
+import { ref, getDownloadURL } from 'firebase/storage'; // Import storage functions
 
 export default function SellingPage() {
   const navigation = useNavigation();
-  const { userProfile, setUserProfile } = useContext(UserContext);
+  const { userProfile } = useContext(UserContext);
+  const [listings, setListings] = useState([]); // Add state for listings
+  const [loading, setLoading] = useState(true); // Add loading state
 
-  const uniqueListings = Array.from(new Set(userProfile.listings.map(item => item.id)))
-    .map(id => userProfile.listings.find(item => item.id === id));
+  useEffect(() => {
+    const fetchUserListings = async () => {
+      if (!userProfile?.id) return; // Check if userProfile exists
+
+      try {
+        const listingsRef = collection(db, 'users', userProfile.id, 'listings');
+        const querySnapshot = await getDocs(listingsRef);
+
+        if (querySnapshot.empty) {
+          console.log('No listings found.');
+          setListings([]); // Set empty array if no listings
+        } else {
+          const fetchedListings = await Promise.all(
+            querySnapshot.docs.map(async (doc) => {
+              const listingData = doc.data();
+              const imageUrl = await getDownloadURL(ref(storage, listingData.imageUrl)); // Fetch full download URL
+              return {
+                id: doc.id,
+                ...listingData,
+                imageUrl, // Store full download URL
+              };
+            })
+          );
+          setListings(fetchedListings); // Set listings in state
+        }
+      } catch (error) {
+        console.error('Error fetching listings:', error);
+      } finally {
+        setLoading(false); // Stop loading
+      }
+    };
+
+    fetchUserListings();
+  }, [userProfile?.id]); // Fetch listings when userProfile is available
 
   const handleDeleteListing = async (itemId) => {
     try {
       await deleteDoc(doc(db, 'users', userProfile.id, 'listings', itemId));
-      const marketplaceDocRef = doc(db, 'marketplace', itemId);
-      const marketplaceDocSnapshot = await getDoc(marketplaceDocRef);
+      await deleteDoc(doc(db, 'marketplace', itemId));
 
-      if (marketplaceDocSnapshot.exists()) {
-        await deleteDoc(marketplaceDocRef);
-        console.log(`Listing with ID ${itemId} successfully deleted from both listings and marketplace.`);
-      } else {
-        console.warn(`Listing with ID ${itemId} not found in the marketplace collection.`);
-      }
-
-      setUserProfile((prevProfile) => ({
-        ...prevProfile,
-        listings: prevProfile.listings.filter((listing) => listing.id !== itemId),
-      }));
+      // Update local listings state after deletion
+      setListings((prevListings) => prevListings.filter((listing) => listing.id !== itemId));
 
       Alert.alert('Success', 'Listing deleted successfully.');
     } catch (error) {
@@ -52,7 +77,7 @@ export default function SellingPage() {
 
   const renderListingItem = ({ item }) => (
     <View style={styles.listingContainer}>
-      <TouchableOpacity onPress={() => navigation.navigate('ItemPage', { item, previousScreen: 'SellingPage' })}>
+      <TouchableOpacity onPress={() => navigation.navigate('ItemPage', { item })}>
         {item.imageUrl ? (
           <Image source={{ uri: item.imageUrl }} style={styles.listingImage} />
         ) : (
@@ -77,16 +102,27 @@ export default function SellingPage() {
     </View>
   );
 
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text>Loading listings...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <Text style={styles.headerText}>Your Listings</Text>
-      <FlatList
-        data={uniqueListings}
-        keyExtractor={(item) => item.id}
-        renderItem={renderListingItem}
-        contentContainerStyle={uniqueListings.length === 0 ? styles.emptyListContainer : styles.listingsContainer}
-        ListEmptyComponent={<Text style={styles.emptyMessage}>No listings available.</Text>}
-      />
+      {listings.length === 0 ? (
+        <Text style={styles.emptyMessage}>No listings available.</Text>
+      ) : (
+        <FlatList
+          data={listings}
+          keyExtractor={(item) => item.id}
+          renderItem={renderListingItem}
+          contentContainerStyle={listings.length === 0 ? styles.emptyListContainer : styles.listingsContainer}
+        />
+      )}
       <TouchableOpacity style={styles.floatingButton} onPress={() => navigation.navigate('CreateListingPage')}>
         <Ionicons name="add-circle-outline" size={60} color="#0070BA" />
       </TouchableOpacity>

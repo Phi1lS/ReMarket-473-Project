@@ -49,30 +49,45 @@ export default function SearchPage() {
       const itemSnapshot = await getDocs(itemQuery);
 
       // Fetch user data and their avatars
-      for (const doc of userSnapshot.docs) {
+      const userResults = await Promise.all(userSnapshot.docs.map(async (doc) => {
         const userData = { id: doc.id, ...doc.data(), type: 'user' };
+
         if (userData.id !== currentUserId) {
           if (userData.avatar) {
-            const avatarRef = ref(storage, userData.avatar); // Reference to the user's avatar in Firebase Storage
             try {
-              userData.avatarUrl = await getDownloadURL(avatarRef); // Get the full download URL
+              const avatarRef = ref(storage, userData.avatar);
+              const avatarUrl = await getDownloadURL(avatarRef);
+              userData.avatarUrl = avatarUrl;
             } catch (error) {
               console.warn(`Failed to fetch avatar for user ${userData.id}:`, error);
-              userData.avatarUrl = fallbackAvatar; // Use fallback in case of an error
+              userData.avatarUrl = Image.resolveAssetSource(fallbackAvatar).uri;
             }
           } else {
-            userData.avatarUrl = fallbackAvatar; // Use fallback avatar if no avatar is provided
+            userData.avatarUrl = Image.resolveAssetSource(fallbackAvatar).uri;
           }
-          searchResults.push(userData);
+          return userData;
         }
-      }
+      }));
 
-      // Fetch item data
-      itemSnapshot.forEach((doc) => {
-        searchResults.push({ id: doc.id, ...doc.data(), type: 'item' });
-      });
+      // Fetch item data and their images
+      const itemResults = await Promise.all(itemSnapshot.docs.map(async (doc) => {
+        const itemData = { id: doc.id, ...doc.data(), type: 'item' };
 
-      setFilteredResults(searchResults);
+        if (itemData.imageUrl) {
+          try {
+            const imageRef = ref(storage, itemData.imageUrl);
+            itemData.imageUrl = await getDownloadURL(imageRef);
+          } catch (error) {
+            console.warn(`Failed to fetch image for item ${itemData.id}:`, error);
+            itemData.imageUrl = null; // Handle error gracefully
+          }
+        }
+        return itemData;
+      }));
+
+      // Combine user and item results
+      const results = [...userResults, ...itemResults].filter(Boolean); // Filter out undefined values
+      setFilteredResults(results);
 
       // Update recent searches only when a complete search is submitted
       if (searchTerm && !recentSearches.includes(searchTerm)) {
@@ -137,14 +152,18 @@ export default function SearchPage() {
               {item.type === 'user' ? (
                 <Avatar.Image
                   size={50}
-                  source={item.avatarUrl ? { uri: item.avatarUrl } : fallbackAvatar}
+                  source={{ uri: item.avatarUrl }} // Ensure this is always a string
                   style={styles.avatar}
                 />
               ) : (
-                <Image
-                  source={{ uri: item.imageUrl }}
-                  style={styles.itemImage}
-                />
+                item.imageUrl ? (
+                  <Image
+                    source={{ uri: item.imageUrl }} // Ensure this is always a string
+                    style={styles.itemImage}
+                  />
+                ) : (
+                  <Ionicons name="image-outline" size={40} color="#888" />
+                )
               )}
               <View style={styles.textContainer}>
                 <Text style={styles.userName}>

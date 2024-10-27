@@ -1,5 +1,5 @@
 import React, { useContext, useState, useEffect } from 'react';
-import { View, Text, TextInput, Image, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, TextInput, Image, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { UserContext } from '../../UserContext'; 
@@ -8,17 +8,31 @@ import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage'; //
 import { db, auth, storage } from '../../firebaseConfig'; // Import your Firebase config
 
 export default function AccountPage() {
-  // Access the user profile from the UserContext
   const { userProfile, setUserProfile } = useContext(UserContext);
 
-  // Local state for the fields to allow editing
   const [firstName, setFirstName] = useState(userProfile.firstName);
   const [lastName, setLastName] = useState(userProfile.lastName);
   const [username, setUsername] = useState(userProfile.username);
   const [email, setEmail] = useState(userProfile.email);
-  const [avatar, setAvatar] = useState(userProfile.avatar || null); // Local state for avatar
+  const [avatar, setAvatar] = useState(userProfile.avatar || null); // Store avatar path
   const [avatarUrl, setAvatarUrl] = useState(null); // Full URL for avatar
-  const [uploading, setUploading] = useState(false); // To track the upload process
+  const [uploading, setUploading] = useState(false); // Track the upload process
+
+  // Load the avatar URL from Firebase when the component mounts
+  useEffect(() => {
+    if (avatar) {
+      const fetchAvatarUrl = async () => {
+        try {
+          const avatarRef = ref(storage, avatar);
+          const url = await getDownloadURL(avatarRef);
+          setAvatarUrl(url); // Store the full download URL
+        } catch (error) {
+          console.error('Error fetching avatar URL:', error);
+        }
+      };
+      fetchAvatarUrl();
+    }
+  }, [avatar]);
 
   // Save button handler to update Firestore and UserContext
   const handleSave = async () => {
@@ -33,6 +47,7 @@ export default function AccountPage() {
         avatar, // Save avatar relative path
       }, { merge: true });
 
+      // Update the context with new data
       setUserProfile({
         ...userProfile,
         firstName,
@@ -49,23 +64,7 @@ export default function AccountPage() {
     }
   };
 
-  // Fetch the full download URL for the avatar
-  useEffect(() => {
-    if (avatar) {
-      const fetchAvatarUrl = async () => {
-        try {
-          const avatarRef = ref(storage, avatar); // Avatar relative path
-          const url = await getDownloadURL(avatarRef);
-          setAvatarUrl(url); // Set the full download URL
-        } catch (error) {
-          console.error('Error fetching avatar URL:', error);
-        }
-      };
-      fetchAvatarUrl();
-    }
-  }, [avatar]);
-
-  // Handle picking an image
+  // Handle picking an image from the media library
   const pickImage = async () => {
     try {
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -75,7 +74,7 @@ export default function AccountPage() {
         return;
       }
 
-      let result = await ImagePicker.launchImageLibraryAsync({
+      const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
@@ -100,7 +99,6 @@ export default function AccountPage() {
     try {
       const response = await fetch(uri);
       const blob = await response.blob();
-
       const avatarPath = `avatars/${auth.currentUser.uid}.jpg`; // Relative path for the avatar
       const avatarRef = ref(storage, avatarPath);
 
@@ -116,9 +114,17 @@ export default function AccountPage() {
           Alert.alert('Error', 'Failed to upload image. Please try again.');
         },
         async () => {
-          await setDoc(doc(db, 'users', auth.currentUser.uid), { avatar: avatarPath }, { merge: true });
-          setAvatar(avatarPath); // Save the relative path to Firestore
-          Alert.alert('Success', 'Profile picture updated.');
+          try {
+            const url = await getDownloadURL(avatarRef); // Get the full download URL
+            setAvatar(avatarPath); // Save the relative path to Firestore
+            setAvatarUrl(url); // Update the avatar URL for display
+            await setDoc(doc(db, 'users', auth.currentUser.uid), { avatar: avatarPath }, { merge: true });
+
+            Alert.alert('Success', 'Profile picture updated.');
+          } catch (error) {
+            console.error('Error saving avatar to Firestore:', error);
+            Alert.alert('Error', 'Failed to update profile picture. Please try again.');
+          }
         }
       );
     } catch (error) {
@@ -133,10 +139,14 @@ export default function AccountPage() {
     <ScrollView contentContainerStyle={styles.container}>
       {/* Profile Picture */}
       <View style={styles.profilePictureContainer}>
-        <Image
-          source={avatarUrl ? { uri: avatarUrl } : require('../../assets/avatar.png')}
-          style={styles.profilePicture}
-        />
+        {uploading ? (
+          <ActivityIndicator size="large" color="#0070BA" />
+        ) : (
+          <Image
+            source={avatarUrl ? { uri: avatarUrl } : require('../../assets/avatar.png')}
+            style={styles.profilePicture}
+          />
+        )}
         {/* Pencil Icon to pick a new profile picture */}
         <TouchableOpacity style={styles.pencilIcon} onPress={pickImage} disabled={uploading}>
           <Ionicons name="pencil" size={24} color="white" />

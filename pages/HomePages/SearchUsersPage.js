@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, TextInput, FlatList, TouchableOpacity, StyleSheet, Text } from 'react-native';
+import { View, TextInput, FlatList, TouchableOpacity, StyleSheet, Text, Image, Keyboard } from 'react-native';
 import { Avatar } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { db, storage, auth } from '../../firebaseConfig'; // Import Firebase Auth and Firestore
@@ -11,33 +11,19 @@ export default function SearchUsersPage() {
   const navigation = useNavigation();
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredUsers, setFilteredUsers] = useState([]);
-  const [isSearching, setIsSearching] = useState(false); // Track if the user is searching
-  const [currentUserId, setCurrentUserId] = useState(null); // State to store current user ID
+  const [isSearching, setIsSearching] = useState(false);
 
-  useEffect(() => {
-    // Get the current user's ID and set it to state
-    if (auth.currentUser) {
-      setCurrentUserId(auth.currentUser.uid);
-      console.log("User ID:", auth.currentUser.uid); // Log user ID for debugging
-    } else {
-      console.warn("No authenticated user found.");
-    }
-  }, [auth.currentUser]);
-
-  // Function to search users by name or username in Firestore
   const searchUsers = async () => {
-    if (!currentUserId) return; // Ensure currentUserId is set before proceeding
+    if (!searchTerm.trim()) return;
 
     setIsSearching(true);
+    const usersRef = collection(db, 'users');
     let q;
-    const usersRef = collection(db, 'users'); // Reference to the "users" collection
 
     if (searchTerm.startsWith('@')) {
-      // Search by username
-      const usernameQuery = searchTerm.substring(1).toLowerCase(); // Remove "@" and lowercase
+      const usernameQuery = searchTerm.substring(1).toLowerCase();
       q = query(usersRef, where('username', '>=', `@${usernameQuery}`), where('username', '<=', `@${usernameQuery}\uf8ff`));
     } else {
-      // Search by name
       const [firstName, lastName] = searchTerm.split(' ');
       if (lastName) {
         q = query(usersRef, where('firstName', '>=', firstName), where('lastName', '>=', lastName));
@@ -48,24 +34,25 @@ export default function SearchUsersPage() {
 
     try {
       const querySnapshot = await getDocs(q);
-      const usersData = [];
-      for (const doc of querySnapshot.docs) {
+      const usersData = await Promise.all(querySnapshot.docs.map(async (doc) => {
         const userData = { id: doc.id, ...doc.data() };
-        if (userData.id !== currentUserId) {
-          if (userData.avatar) {
-            const avatarRef = ref(storage, userData.avatar); // Reference to the user's avatar in Firebase Storage
-            try {
-              userData.avatarUrl = await getDownloadURL(avatarRef); // Get the full download URL
-            } catch (error) {
-              console.warn(`Failed to fetch avatar for user ${userData.id}:`, error);
-              userData.avatarUrl = fallbackAvatar; // Use fallback in case of an error
-            }
-          } else {
-            userData.avatarUrl = fallbackAvatar; // Use fallback avatar if no avatar is provided
+
+        if (userData.avatar) {
+          try {
+            const avatarRef = ref(storage, userData.avatar);
+            const avatarUrl = await getDownloadURL(avatarRef);
+            userData.avatarUrl = avatarUrl;
+          } catch (error) {
+            console.warn(`Failed to fetch avatar for user ${userData.id}:`, error);
+            userData.avatarUrl = Image.resolveAssetSource(fallbackAvatar).uri; // Resolve the fallback image path
           }
-          usersData.push(userData);
+        } else {
+          userData.avatarUrl = Image.resolveAssetSource(fallbackAvatar).uri; // Resolve the fallback image path
         }
-      }
+
+        return userData;
+      }));
+
       setFilteredUsers(usersData);
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -74,18 +61,16 @@ export default function SearchUsersPage() {
     }
   };
 
-  // UseEffect to trigger the search when the searchTerm changes
   useEffect(() => {
     if (searchTerm) {
       searchUsers();
     } else {
-      setFilteredUsers([]); // Clear the list when no search term
+      setFilteredUsers([]);
     }
-  }, [searchTerm, currentUserId]); // Depend on currentUserId to ensure it’s available
+  }, [searchTerm]);
 
   return (
     <View style={styles.container}>
-      {/* Search Bar */}
       <TextInput
         style={[styles.searchBar, isSearching && styles.searchBarActive]}
         placeholder="Search for users"
@@ -106,7 +91,7 @@ export default function SearchUsersPage() {
           >
             <Avatar.Image
               size={50}
-              source={item.avatarUrl ? { uri: item.avatarUrl } : fallbackAvatar}
+              source={{ uri: item.avatarUrl }} // Ensure this is always a string
               style={styles.avatar}
             />
             <View>
