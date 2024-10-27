@@ -1,5 +1,5 @@
 import React, { useContext, useState, useEffect } from 'react';
-import { View, FlatList, StyleSheet, TouchableOpacity, TextInput, ScrollView, Text, Image, Platform, StatusBar } from 'react-native';
+import { View, FlatList, StyleSheet, TouchableOpacity, TextInput, ScrollView, Text, Image, Platform, StatusBar, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { getDownloadURL, ref } from 'firebase/storage'; // Import Firebase storage functions
@@ -17,6 +17,7 @@ export default function ShopPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredItems, setFilteredItems] = useState([]);
   const [itemImages, setItemImages] = useState({}); // Store image URLs
+  const [loadingImages, setLoadingImages] = useState({}); // Track loading states of each image
 
   useEffect(() => {
     setFilteredItems(items);
@@ -26,7 +27,11 @@ export default function ShopPage() {
   // Function to fetch the image URLs for the items
   const fetchItemImages = async (items) => {
     const imageMap = {};
+    const loadingMap = {};
+    
     for (const item of items) {
+      loadingMap[item.id] = true; // Set loading to true for the item
+
       if (item.imageUrl) {
         try {
           const imageRef = ref(storage, item.imageUrl); // Use relative path
@@ -34,10 +39,15 @@ export default function ShopPage() {
           imageMap[item.id] = downloadURL; // Map item id to its image URL
         } catch (error) {
           console.error(`Error fetching image for item ${item.id}:`, error);
+        } finally {
+          loadingMap[item.id] = false; // Set loading to false after fetching
         }
+      } else {
+        loadingMap[item.id] = false; // No imageUrl, no loading needed
       }
     }
     setItemImages(imageMap); // Update state with image URLs
+    setLoadingImages(loadingMap); // Update loading state
   };
 
   const handleSearch = (query) => {
@@ -74,10 +84,12 @@ export default function ShopPage() {
             onPress={() => navigation.navigate('ItemPage', { item })}
           >
             {/* Use the fetched image URL from the itemImages state */}
-            {itemImages[item.id] ? (
+            {loadingImages[item.id] ? (
+              <ActivityIndicator size="small" color="#0070BA" /> // Show loader while fetching
+            ) : itemImages[item.id] ? (
               <Image source={{ uri: itemImages[item.id] }} style={styles.itemImage} />
             ) : (
-              <Text>Loading...</Text>
+              <View style={styles.emptyImagePlaceholder} /> // Empty space if no image is available
             )}
             <Text style={styles.itemName}>{item.description}</Text>
           </TouchableOpacity>
@@ -226,5 +238,11 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     textAlign: 'center',
+  },
+  emptyImagePlaceholder: {
+    width: 130, // Adjust width and height accordingly
+    height: 85,
+    backgroundColor: '#f0f0f0', // Optional: add a placeholder background color
+    borderRadius: 8,
   },
 });
