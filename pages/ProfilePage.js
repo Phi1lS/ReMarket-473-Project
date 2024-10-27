@@ -14,7 +14,7 @@ export default function ProfilePage({ navigation }) {
   const [avatarUrl, setAvatarUrl] = useState(null); // State to store full avatar URL
   const [purchasesWithImages, setPurchasesWithImages] = useState([]); // Store purchases with images
 
-  // Fetch the avatar URL from Firebase Storage if userProfile.avatar is a relative path
+  // Fetch the avatar URL from Firebase Storage every time the page loads
   useEffect(() => {
     const fetchAvatarUrl = async () => {
       if (userProfile.avatar) {
@@ -24,12 +24,16 @@ export default function ProfilePage({ navigation }) {
           setAvatarUrl(url); // Store the full download URL
         } catch (error) {
           console.error('Error fetching avatar URL:', error);
+          setAvatarUrl(null); // Set to null if there's an error fetching
         }
+      } else {
+        setAvatarUrl(null); // No avatar set, fallback to placeholder
       }
     };
 
+    // Trigger the avatar fetch every time the ProfilePage loads
     fetchAvatarUrl();
-  }, [userProfile.avatar]);
+  }, []);
 
   // Fetch image URLs for each purchase
   useEffect(() => {
