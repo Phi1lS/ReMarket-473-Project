@@ -49,7 +49,7 @@ export default function CreateListingPage() {
     setUploading(true);
     const response = await fetch(uri);
     const blob = await response.blob();
-    const imageRef = ref(storage, `listings/${userProfile?.id || 'unknown_user'}/${Date.now()}.jpg`);
+    const imageRef = ref(storage, `listings/${userProfile.id}/${Date.now()}.jpg`); // Use seller ID for path
 
     const uploadTask = uploadBytesResumable(imageRef, blob);
 
@@ -65,9 +65,8 @@ export default function CreateListingPage() {
           reject(error);
         },
         async () => {
-          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
           setUploading(false);
-          resolve(downloadURL);
+          resolve(imageRef.fullPath); // Return the local path in Firebase Storage
         }
       );
     });
@@ -80,10 +79,10 @@ export default function CreateListingPage() {
     }
   
     try {
-      const imageUrl = await uploadImage(image);
-  
+      const imagePath = await uploadImage(image); // Use imagePath to store locally
+
       const listingData = {
-        imageUrl,
+        imageUrl: imagePath, // Store local path
         description,
         price: parseFloat(price),
         quantity: parseInt(quantity, 10),
