@@ -13,11 +13,11 @@ const categories = [
 ];
 
 export default function CreateListingPage() {
-  const { userProfile, setUserProfile } = useContext(UserContext); // Access user profile from UserContext
+  const { userProfile, setUserProfile } = useContext(UserContext);
   const [image, setImage] = useState(null);
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
-  const [quantity, setQuantity] = useState(''); // Add quantity field
+  const [quantity, setQuantity] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [uploading, setUploading] = useState(false);
   const navigation = useNavigation();
@@ -49,7 +49,7 @@ export default function CreateListingPage() {
     setUploading(true);
     const response = await fetch(uri);
     const blob = await response.blob();
-    const imageRef = ref(storage, `listings/${userProfile.id}/${Date.now()}.jpg`); // Use seller ID for path
+    const imageRef = ref(storage, `listings/${userProfile.id}/${Date.now()}.jpg`); // Set path in local storage
 
     const uploadTask = uploadBytesResumable(imageRef, blob);
 
@@ -66,7 +66,7 @@ export default function CreateListingPage() {
         },
         async () => {
           setUploading(false);
-          resolve(imageRef.fullPath); // Return the local path in Firebase Storage
+          resolve(imageRef.fullPath); // Return the path in Firebase Storage
         }
       );
     });
@@ -77,38 +77,38 @@ export default function CreateListingPage() {
       Alert.alert('Error', 'Please fill out all fields, select a category, and upload an image.');
       return;
     }
-  
+
     try {
-      const imagePath = await uploadImage(image); // Use imagePath to store locally
+      const imagePath = await uploadImage(image); // Get the local path
 
       const listingData = {
-        imageUrl: imagePath, // Store local path
+        imageUrl: imagePath, // Use the local path
         description,
         price: parseFloat(price),
         quantity: parseInt(quantity, 10),
         category: selectedCategory,
         sellerId: userProfile.id,
         sellerName: `${userProfile.firstName || 'Unknown'} ${userProfile.lastName || ''}`,
-        sellerAvatar: userProfile.avatar || '',
+        sellerAvatar: `avatars/${userProfile.id}.jpg`, // Store avatar path in local storage
         createdAt: new Date(),
       };
-  
+
       // Add listing to the user's subcollection and get the auto-generated Firestore ID
       const userListingRef = await addDoc(collection(db, 'users', userProfile.id, 'listings'), listingData);
       const listingId = userListingRef.id;
-  
+
       // Update listing data with the Firestore ID
       const listingWithId = { ...listingData, id: listingId };
-  
+
       // Use the same ID in the marketplace collection
       await setDoc(doc(db, 'marketplace', listingId), listingWithId);
-  
+
       // Update the user profile context
       setUserProfile((prevProfile) => ({
         ...prevProfile,
         listings: [...(prevProfile.listings || []), listingWithId],
       }));
-  
+
       Alert.alert('Success', 'Listing created successfully!');
       navigation.navigate('SellingScreen');
     } catch (error) {
