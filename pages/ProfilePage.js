@@ -65,7 +65,12 @@ export default function ProfilePage({ navigation }) {
 
   // Function to sort purchases by timestamp (from most recent to oldest)
   const sortPurchasesByDate = (purchases) => {
-    return purchases.sort((a, b) => b.timestamp.seconds - a.timestamp.seconds);
+    return purchases.sort((a, b) => {
+      // Add checks for timestamp existence
+      const aTimestamp = a.timestamp?.seconds || 0; // Default to 0 if null
+      const bTimestamp = b.timestamp?.seconds || 0; // Default to 0 if null
+      return bTimestamp - aTimestamp; // Sort descending
+    });
   };
 
   const renderPurchaseItem = (item) => (
