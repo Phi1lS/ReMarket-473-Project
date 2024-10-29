@@ -31,7 +31,10 @@ export default function SellingPage() {
             };
           })
         );
-        setListings(fetchedListings); // Set the listings with updated quantities
+
+        // Sort listings by createdAt in descending order
+        const sortedListings = fetchedListings.sort((a, b) => b.createdAt - a.createdAt);
+        setListings(sortedListings); // Set the listings with updated quantities
         setLoading(false); // Stop loading when listings are fetched
       });
 
