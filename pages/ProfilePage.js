@@ -5,6 +5,7 @@ import { Avatar } from 'react-native-paper';
 import { UserContext } from '../UserContext';
 import { getDownloadURL, ref } from 'firebase/storage'; // Import Firebase storage functions
 import { storage } from '../firebaseConfig'; // Import Firebase config
+import { useFocusEffect } from '@react-navigation/native';
 
 const avatarPlaceholder = require('../assets/avatar.png');
 
@@ -13,6 +14,27 @@ export default function ProfilePage({ navigation }) {
   const [selectedTab, setSelectedTab] = useState('wallet');
   const [avatarUrl, setAvatarUrl] = useState(null); // State to store full avatar URL
   const [purchasesWithImages, setPurchasesWithImages] = useState([]); // Store purchases with images
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const fetchAvatarUrl = async () => {
+        if (userProfile.avatar) {
+          try {
+            const avatarRef = ref(storage, userProfile.avatar);
+            const url = await getDownloadURL(avatarRef);
+            setAvatarUrl(url);
+          } catch (error) {
+            console.error('Error fetching avatar URL:', error);
+            setAvatarUrl(null);
+          }
+        } else {
+          setAvatarUrl(null);
+        }
+      };
+
+      fetchAvatarUrl();
+    }, [userProfile.avatar]) // Re-run when userProfile.avatar changes
+  );
 
   // Fetch the avatar URL from Firebase Storage every time the page loads
   useEffect(() => {

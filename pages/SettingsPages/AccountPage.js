@@ -106,9 +106,9 @@ export default function AccountPage() {
       const blob = await response.blob();
       const avatarPath = `avatars/${auth.currentUser.uid}.jpg`;
       const avatarRef = ref(storage, avatarPath);
-
+  
       const uploadTask = uploadBytesResumable(avatarRef, blob);
-
+  
       uploadTask.on(
         'state_changed',
         (snapshot) => {
@@ -120,11 +120,19 @@ export default function AccountPage() {
         },
         async () => {
           try {
-            const url = await getDownloadURL(avatarRef);
+            const url = await getDownloadURL(avatarRef); // Get the full download URL
             setAvatar(avatarPath); // Save the relative path to Firestore
             setAvatarUrl(url); // Update the avatar URL for display
+            
+            // Update the user profile context with the new avatar URL
+            setUserProfile((prevProfile) => ({
+              ...prevProfile,
+              avatar: avatarPath,
+              avatarUrl: url,
+            }));
+  
             await setDoc(doc(db, 'users', auth.currentUser.uid), { avatar: avatarPath }, { merge: true });
-
+  
             Alert.alert('Success', 'Profile picture updated.');
           } catch (error) {
             console.error('Error saving avatar to Firestore:', error);
