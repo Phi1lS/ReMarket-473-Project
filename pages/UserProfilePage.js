@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, ActivityIndicator } from 'react-native';
 import { Avatar } from 'react-native-paper';
 import { Ionicons } from 'react-native-vector-icons';
 import { UserContext } from '../UserContext'; // Import UserContext
@@ -119,7 +119,7 @@ export default function UserProfilePage({ route, navigation }) {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <Text>Loading user data...</Text>
+        <ActivityIndicator size="large" color="#0070BA" />
       </View>
     );
   }
@@ -302,7 +302,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
   },
   noTransactions: {
     fontSize: 16,

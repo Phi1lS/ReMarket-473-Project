@@ -1,5 +1,5 @@
 import React, { useContext, useState, useEffect } from 'react';
-import { View, FlatList, Text, Image, StyleSheet, TouchableOpacity, Alert, Platform, StatusBar } from 'react-native';
+import { View, FlatList, Text, Image, StyleSheet, TouchableOpacity, Alert, Platform, StatusBar, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { UserContext } from '../UserContext';
@@ -101,7 +101,7 @@ export default function SellingPage() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <Text>Loading listings...</Text>
+        <ActivityIndicator size="large" color="#0070BA" />
       </View>
     );
   }
@@ -194,5 +194,10 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#999',
     textAlign: 'center',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
