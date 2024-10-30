@@ -23,13 +23,29 @@ export default function SearchUsersPage() {
 
     if (searchTerm.startsWith('@')) {
       const usernameQuery = searchTerm.substring(1).toLowerCase();
-      q = query(usersRef, where('username', '>=', `@${usernameQuery}`), where('username', '<=', `@${usernameQuery}\uf8ff`));
+      q = query(
+        usersRef,
+        where('username', '>=', `@${usernameQuery}`),
+        where('username', '<=', `@${usernameQuery}\uf8ff`)
+      );
     } else {
       const [firstName, lastName] = searchTerm.split(' ');
       if (lastName) {
-        q = query(usersRef, where('firstName', '>=', firstName), where('lastName', '>=', lastName));
+        // If both first name and last name are provided
+        q = query(
+          usersRef,
+          where('firstName', '>=', firstName),
+          where('firstName', '<=', firstName + '\uf8ff'),
+          where('lastName', '>=', lastName),
+          where('lastName', '<=', lastName + '\uf8ff')
+        );
       } else {
-        q = query(usersRef, where('firstName', '>=', firstName), where('firstName', '<=', firstName + '\uf8ff'));
+        // Only search by first name if no last name is provided
+        q = query(
+          usersRef,
+          where('firstName', '>=', firstName),
+          where('firstName', '<=', firstName + '\uf8ff')
+        );
       }
     }
 

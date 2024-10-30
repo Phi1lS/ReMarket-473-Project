@@ -22,9 +22,9 @@ export default function SearchPage() {
     setIsSearching(true);
     const usersRef = collection(db, 'users');
     const itemsRef = collection(db, 'marketplace');
-    const searchResults = [];
-
+    
     let userQuery;
+
     if (searchTerm.startsWith('@')) {
       // Search by username if the term starts with '@'
       const usernameQuery = searchTerm.substring(1).toLowerCase();
@@ -34,12 +34,23 @@ export default function SearchPage() {
         where('username', '<=', `@${usernameQuery}\uf8ff`)
       );
     } else {
-      // Otherwise, search by first name
+      // Otherwise, search by first and last name
       const [firstName, lastName] = searchTerm.split(' ');
+      
       if (lastName) {
-        userQuery = query(usersRef, where('firstName', '>=', firstName), where('lastName', '>=', lastName));
+        userQuery = query(
+          usersRef,
+          where('firstName', '>=', firstName),
+          where('firstName', '<=', firstName + '\uf8ff'),
+          where('lastName', '>=', lastName),
+          where('lastName', '<=', lastName + '\uf8ff')
+        );
       } else {
-        userQuery = query(usersRef, where('firstName', '>=', firstName), where('firstName', '<=', firstName + '\uf8ff'));
+        userQuery = query(
+          usersRef,
+          where('firstName', '>=', firstName),
+          where('firstName', '<=', firstName + '\uf8ff')
+        );
       }
     }
 
