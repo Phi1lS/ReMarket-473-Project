@@ -2,6 +2,7 @@ import React, { useContext, useState, useEffect } from 'react';
 import { View, Text, TextInput, Image, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { UserContext } from '../../UserContext'; 
 import { doc, setDoc } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage'; // Import Firebase Storage functions
@@ -14,18 +15,17 @@ export default function AccountPage() {
   const [lastName, setLastName] = useState(userProfile.lastName);
   const [username, setUsername] = useState(userProfile.username);
   const [email, setEmail] = useState(userProfile.email);
-  const [avatar, setAvatar] = useState(userProfile.avatar || null); // Store avatar path
-  const [avatarUrl, setAvatarUrl] = useState(null); // Full URL for avatar
-  const [uploading, setUploading] = useState(false); // Track the upload process
+  const [avatar, setAvatar] = useState(userProfile.avatar || null);
+  const [avatarUrl, setAvatarUrl] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
-  // Load the avatar URL from Firebase when the component mounts
   useEffect(() => {
     if (avatar) {
       const fetchAvatarUrl = async () => {
         try {
           const avatarRef = ref(storage, avatar);
           const url = await getDownloadURL(avatarRef);
-          setAvatarUrl(url); // Store the full download URL
+          setAvatarUrl(url);
         } catch (error) {
           console.error('Error fetching avatar URL:', error);
         }
@@ -34,20 +34,17 @@ export default function AccountPage() {
     }
   }, [avatar]);
 
-  // Save button handler to update Firestore and UserContext
   const handleSave = async () => {
     try {
       const userRef = doc(db, 'users', auth.currentUser.uid);
-
       await setDoc(userRef, {
         firstName,
         lastName,
         username,
         email,
-        avatar, // Save avatar relative path
+        avatar,
       }, { merge: true });
 
-      // Update the context with new data
       setUserProfile({
         ...userProfile,
         firstName,
@@ -64,42 +61,50 @@ export default function AccountPage() {
     }
   };
 
-  // Handle picking an image from the media library
   const pickImage = async () => {
-    try {
-      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permissionResult.granted) {
+      Alert.alert('Permission Denied', 'Permission to access camera roll is required!');
+      return;
+    }
 
-      if (!permissionResult.granted) {
-        Alert.alert('Permission Denied', 'Permission to access camera roll is required!');
-        return;
-      }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 1,
+    });
 
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 1,
-      });
-
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const uri = result.assets[0].uri;
-        uploadImage(uri); // Upload the selected image
-      } else {
-        Alert.alert('Error', 'Unable to pick an image. Please try again.');
-      }
-    } catch (error) {
-      console.error('Error during image picking:', error);
-      Alert.alert('Error', 'Failed to pick an image. Please try again.');
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      const uri = result.assets[0].uri;
+      uploadImage(uri);
+    } else {
+      Alert.alert('Error', 'Unable to pick an image. Please try again.');
     }
   };
 
-  // Upload the selected image to Firebase Storage
+  const resizeImage = async (uri) => {
+    try {
+      const manipulatedImage = await ImageManipulator.manipulateAsync(
+        uri,
+        [{ resize: { width: 400, height: 400 } }], // Adjust dimensions as needed
+        { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
+      );
+
+      return manipulatedImage.uri;
+    } catch (error) {
+      console.error('Error resizing image:', error);
+      return uri; // Fallback to original URI if resizing fails
+    }
+  };
+
   const uploadImage = async (uri) => {
     setUploading(true);
     try {
-      const response = await fetch(uri);
+      const resizedUri = await resizeImage(uri); // Resize the image before uploading
+      const response = await fetch(resizedUri);
       const blob = await response.blob();
-      const avatarPath = `avatars/${auth.currentUser.uid}.jpg`; // Relative path for the avatar
+      const avatarPath = `avatars/${auth.currentUser.uid}.jpg`;
       const avatarRef = ref(storage, avatarPath);
 
       const uploadTask = uploadBytesResumable(avatarRef, blob);
@@ -115,7 +120,7 @@ export default function AccountPage() {
         },
         async () => {
           try {
-            const url = await getDownloadURL(avatarRef); // Get the full download URL
+            const url = await getDownloadURL(avatarRef);
             setAvatar(avatarPath); // Save the relative path to Firestore
             setAvatarUrl(url); // Update the avatar URL for display
             await setDoc(doc(db, 'users', auth.currentUser.uid), { avatar: avatarPath }, { merge: true });
