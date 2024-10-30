@@ -7,196 +7,199 @@ import { db, auth } from '../../firebaseConfig';
 import { doc, updateDoc, getDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 
 export default function CheckoutPage() {
-    const { cart, items, userProfile, setCart, addPurchase } = useContext(UserContext);
-    const [selectedAddress, setSelectedAddress] = useState(null);
-    const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
-    const [message, setMessage] = useState('');
-    const navigation = useNavigation();
-  
-    const cartItemsWithDetails = cart.map((cartItem) => {
-      const itemDetails = items.find((item) => item.id === cartItem.itemId);
-      if (itemDetails && itemDetails.sellerId) {
-        return { ...itemDetails, quantity: cartItem.quantity };
-      } else {
-        console.warn("Missing sellerId or item details for cart item:", cartItem);
-        return null;
-      }
-    }).filter(Boolean);
-  
-    const totalPrice = cartItemsWithDetails.reduce((total, item) => total + item.price * item.quantity, 0);
-  
-    const handleCheckout = async () => {
-        if (!selectedAddress || !selectedPaymentMethod) {
-          Alert.alert('Incomplete', 'Please select a shipping address and payment method.');
-          return;
+  const { cart, items, userProfile, setCart, addPurchase } = useContext(UserContext);
+  const [selectedAddress, setSelectedAddress] = useState(null);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
+  const [message, setMessage] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false); // State to track checkout processing
+  const navigation = useNavigation();
+
+  const cartItemsWithDetails = cart.map((cartItem) => {
+    const itemDetails = items.find((item) => item.id === cartItem.itemId);
+    if (itemDetails && itemDetails.sellerId) {
+      return { ...itemDetails, quantity: cartItem.quantity };
+    } else {
+      console.warn("Missing sellerId or item details for cart item:", cartItem);
+      return null;
+    }
+  }).filter(Boolean);
+
+  const totalPrice = cartItemsWithDetails.reduce((total, item) => total + item.price * item.quantity, 0);
+
+  const handleCheckout = async () => {
+    if (isProcessing) return; // Prevent multiple submissions
+    if (!selectedAddress || !selectedPaymentMethod) {
+      Alert.alert('Incomplete', 'Please select a shipping address and payment method.');
+      return;
+    }
+
+    if (!auth.currentUser || !userProfile.id) {
+      Alert.alert('Error', 'User is not authenticated. Please log in again.');
+      return;
+    }
+
+    setIsProcessing(true); // Set processing to true
+
+    try {
+      const purchasedItemIds = cartItemsWithDetails.map(item => item.id);
+      const purchases = []; // Array to store purchase data for adding to Firestore
+
+      await Promise.all(cartItemsWithDetails.map(async (cartItem) => {
+        // Fetch current quantity from marketplace and seller listing
+        const marketplaceRef = doc(db, 'marketplace', cartItem.id);
+        const marketplaceDoc = await getDoc(marketplaceRef);
+        const marketplaceQuantity = marketplaceDoc.exists() ? marketplaceDoc.data().quantity : 0;
+
+        const sellerListingRef = doc(db, 'users', cartItem.sellerId, 'listings', cartItem.id);
+        const sellerListingDoc = await getDoc(sellerListingRef);
+        const sellerQuantity = sellerListingDoc.exists() ? sellerListingDoc.data().quantity : 0;
+
+        // Calculate new quantities
+        const newMarketplaceQuantity = Math.max(marketplaceQuantity - cartItem.quantity, 0);
+        const newSellerQuantity = Math.max(sellerQuantity - cartItem.quantity, 0);
+
+        // Update quantities in Firestore
+        await updateDoc(marketplaceRef, { quantity: newMarketplaceQuantity });
+        await updateDoc(sellerListingRef, { quantity: newSellerQuantity });
+
+        // Add item details, including image URL, and purchase metadata to the purchases array
+        purchases.push({
+          itemId: cartItem.id,
+          itemName: cartItem.description,
+          price: cartItem.price,
+          quantity: cartItem.quantity,
+          imageUrl: cartItem.imageUrl || '',
+          timestamp: serverTimestamp(),
+          message: message || '',
+        });
+      }));
+
+      // Add each purchase to the purchases subcollection in Firestore
+      await Promise.all(purchases.map(async (purchase) => {
+        await addPurchase(purchase);
+      }));
+
+      // Remove purchased items from cart and update Firestore
+      const updatedCart = cart.filter(cartItem => !purchasedItemIds.includes(cartItem.itemId));
+      setCart(updatedCart);
+      const userRef = doc(db, 'users', userProfile.id);
+      await updateDoc(userRef, { cart: updatedCart });
+
+      Alert.alert('Checkout Successful', 'Your order has been placed.');
+      navigation.navigate('ShopScreen');
+    } catch (error) {
+      console.error('Error during checkout:', error);
+      Alert.alert('Error', 'Failed to complete the checkout. Please try again.');
+    } finally {
+      setIsProcessing(false); // Reset processing state
+    }
+  };
+
+  const renderCartItem = ({ item }) => (
+    <View style={styles.cartItem}>
+      <Text style={styles.itemName}>{item.description}</Text>
+      <Text style={styles.itemPrice}>${item.price.toFixed(2)} x {item.quantity}</Text>
+    </View>
+  );
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.sectionTitle}>Items for Checkout</Text>
+      <FlatList
+        data={cartItemsWithDetails}
+        renderItem={renderCartItem}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.cartList}
+        ListFooterComponent={
+          <View style={styles.subtotalContainer}>
+            <Text style={styles.subtotalText}>Total:</Text>
+            <Text style={styles.subtotalAmount}>${totalPrice.toFixed(2)}</Text>
+          </View>
         }
-      
-        if (!auth.currentUser || !userProfile.id) {
-          Alert.alert('Error', 'User is not authenticated. Please log in again.');
-          return;
-        }
-      
-        try {
-          const purchasedItemIds = cartItemsWithDetails.map(item => item.id);
-          const purchases = []; // Array to store purchase data for adding to Firestore
-      
-          console.log("Checkout message:", message); // Log the message state
-      
-          await Promise.all(cartItemsWithDetails.map(async (cartItem) => {
-            // Fetch current quantity from marketplace and seller listing
-            const marketplaceRef = doc(db, 'marketplace', cartItem.id);
-            const marketplaceDoc = await getDoc(marketplaceRef);
-            const marketplaceQuantity = marketplaceDoc.exists() ? marketplaceDoc.data().quantity : 0;
-      
-            const sellerListingRef = doc(db, 'users', cartItem.sellerId, 'listings', cartItem.id);
-            const sellerListingDoc = await getDoc(sellerListingRef);
-            const sellerQuantity = sellerListingDoc.exists() ? sellerListingDoc.data().quantity : 0;
-      
-            // Calculate new quantities
-            const newMarketplaceQuantity = Math.max(marketplaceQuantity - cartItem.quantity, 0);
-            const newSellerQuantity = Math.max(sellerQuantity - cartItem.quantity, 0);
-      
-            // Update quantities in Firestore
-            await updateDoc(marketplaceRef, { quantity: newMarketplaceQuantity });
-            await updateDoc(sellerListingRef, { quantity: newSellerQuantity });
-      
-            // Add item details, including image URL, and purchase metadata to the purchases array
-            purchases.push({
-              itemId: cartItem.id,
-              itemName: cartItem.description,
-              price: cartItem.price,
-              quantity: cartItem.quantity,
-              imageUrl: cartItem.imageUrl || '', // Include image URL from the cartItem
-              timestamp: serverTimestamp(),
-              message: message || '', // Use the current state of message here
-            });
-          }));
-      
-          // Log purchases array before adding to Firestore
-          console.log("Prepared purchases:", purchases);
-      
-          // Add each purchase to the purchases subcollection in Firestore
-          await Promise.all(purchases.map(async (purchase) => {
-            await addPurchase(purchase);
-          }));
-      
-          // Remove purchased items from cart and update Firestore
-          const updatedCart = cart.filter(cartItem => !purchasedItemIds.includes(cartItem.itemId));
-          setCart(updatedCart);
-          const userRef = doc(db, 'users', userProfile.id);
-          await updateDoc(userRef, { cart: updatedCart });
-      
-          Alert.alert('Checkout Successful', 'Your order has been placed.');
-          navigation.navigate('ShopScreen');
-        } catch (error) {
-          console.error('Error during checkout:', error);
-          Alert.alert('Error', 'Failed to complete the checkout. Please try again.');
-        }
-      };
-  
-    const renderCartItem = ({ item }) => (
-      <View style={styles.cartItem}>
-        <Text style={styles.itemName}>{item.description}</Text>
-        <Text style={styles.itemPrice}>${item.price.toFixed(2)} x {item.quantity}</Text>
-      </View>
-    );
-  
-    return (
-      <View style={styles.container}>
-        <Text style={styles.sectionTitle}>Items for Checkout</Text>
+      />
+
+      <Text style={styles.sectionTitle}>Shipping Address</Text>
+      {userProfile.shippingAddresses && userProfile.shippingAddresses.length > 0 ? (
         <FlatList
-          data={cartItemsWithDetails}
-          renderItem={renderCartItem}
+          data={userProfile.shippingAddresses}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={[
+                styles.addressContainer,
+                selectedAddress === item.id && styles.selectedContainer,
+              ]}
+              onPress={() => setSelectedAddress(item.id)}
+            >
+              <Text>{`${item.firstName} ${item.lastName}`}</Text>
+              <Text>{item.streetAddress}</Text>
+              <Text>{`${item.city}, ${item.state} ${item.zipCode}`}</Text>
+            </TouchableOpacity>
+          )}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.cartList}
-          ListFooterComponent={
-            <View style={styles.subtotalContainer}>
-              <Text style={styles.subtotalText}>Total:</Text>
-              <Text style={styles.subtotalAmount}>${totalPrice.toFixed(2)}</Text>
-            </View>
-          }
+          horizontal
         />
-  
-        <Text style={styles.sectionTitle}>Shipping Address</Text>
-        {userProfile.shippingAddresses && userProfile.shippingAddresses.length > 0 ? (
-          <FlatList
-            data={userProfile.shippingAddresses}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[
-                  styles.addressContainer,
-                  selectedAddress === item.id && styles.selectedContainer,
-                ]}
-                onPress={() => setSelectedAddress(item.id)}
-              >
-                <Text>{`${item.firstName} ${item.lastName}`}</Text>
-                <Text>{item.streetAddress}</Text>
-                <Text>{`${item.city}, ${item.state} ${item.zipCode}`}</Text>
-              </TouchableOpacity>
-            )}
-            keyExtractor={(item) => item.id}
-            horizontal
-          />
-        ) : (
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={() => navigation.navigate('ShippingAddressesPage')}
-          >
-            <Ionicons name="add-circle-outline" size={20} color="#0070BA" />
-            <Text style={styles.addButtonText}>Add Shipping Address</Text>
-          </TouchableOpacity>
-        )}
-  
-        <Text style={styles.sectionTitle}>Payment Method</Text>
-        {userProfile.paymentMethods && userProfile.paymentMethods.length > 0 ? (
-          <FlatList
-            data={userProfile.paymentMethods}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[
-                  styles.paymentMethodContainer,
-                  selectedPaymentMethod === item.id && styles.selectedContainer,
-                ]}
-                onPress={() => setSelectedPaymentMethod(item.id)}
-              >
-                <Text>Card: **** **** **** {item.cardNumber.slice(-4)}</Text>
-                <Text>Expires: {item.expirationDate}</Text>
-              </TouchableOpacity>
-            )}
-            keyExtractor={(item) => item.id}
-            horizontal
-          />
-        ) : (
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={() => navigation.navigate('PaymentMethodsPage')}
-          >
-            <Ionicons name="add-circle-outline" size={20} color="#0070BA" />
-            <Text style={styles.addButtonText}>Add Payment Method</Text>
-          </TouchableOpacity>
-        )}
-  
-        <Text style={styles.sectionTitle}>Order Message</Text>
-        <TextInput
-          style={styles.messageInput}
-          placeholder="Enter a message for your activity feed (optional)"
-          value={message}
-          onChangeText={setMessage}
-        />
-  
+      ) : (
         <TouchableOpacity
-          style={[
-            styles.checkoutButton,
-            (!selectedAddress || !selectedPaymentMethod) && styles.disabledButton,
-          ]}
-          onPress={handleCheckout}
-          disabled={!selectedAddress || !selectedPaymentMethod}
+          style={styles.addButton}
+          onPress={() => navigation.navigate('ShippingAddressesPage')}
         >
-          <Text style={styles.checkoutButtonText}>Checkout</Text>
+          <Ionicons name="add-circle-outline" size={20} color="#0070BA" />
+          <Text style={styles.addButtonText}>Add Shipping Address</Text>
         </TouchableOpacity>
-      </View>
-    );
-  }
+      )}
+
+      <Text style={styles.sectionTitle}>Payment Method</Text>
+      {userProfile.paymentMethods && userProfile.paymentMethods.length > 0 ? (
+        <FlatList
+          data={userProfile.paymentMethods}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={[
+                styles.paymentMethodContainer,
+                selectedPaymentMethod === item.id && styles.selectedContainer,
+              ]}
+              onPress={() => setSelectedPaymentMethod(item.id)}
+            >
+              <Text>Card: **** **** **** {item.cardNumber.slice(-4)}</Text>
+              <Text>Expires: {item.expirationDate}</Text>
+            </TouchableOpacity>
+          )}
+          keyExtractor={(item) => item.id}
+          horizontal
+        />
+      ) : (
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => navigation.navigate('PaymentMethodsPage')}
+        >
+          <Ionicons name="add-circle-outline" size={20} color="#0070BA" />
+          <Text style={styles.addButtonText}>Add Payment Method</Text>
+        </TouchableOpacity>
+      )}
+
+      <Text style={styles.sectionTitle}>Order Message</Text>
+      <TextInput
+        style={styles.messageInput}
+        placeholder="Enter a message for your activity feed (optional)"
+        value={message}
+        onChangeText={setMessage}
+      />
+
+      <TouchableOpacity
+        style={[
+          styles.checkoutButton,
+          (!selectedAddress || !selectedPaymentMethod || isProcessing) && styles.disabledButton,
+        ]}
+        onPress={handleCheckout}
+        disabled={!selectedAddress || !selectedPaymentMethod || isProcessing}
+      >
+        <Text style={styles.checkoutButtonText}>
+          {isProcessing ? 'Processing...' : 'Checkout'}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
 
 const styles = StyleSheet.create({
   container: {
