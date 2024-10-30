@@ -44,16 +44,38 @@ export default function CreateListingPage({ navigation }) {
 
   const resizeImage = async (uri) => {
     try {
+      const { width, height } = await new Promise((resolve) => {
+        Image.getSize(uri, (w, h) => resolve({ width: w, height: h }));
+      });
+
+      // Maintain aspect ratio by calculating new dimensions
+      const maxWidth = 800;
+      const maxHeight = 600;
+      let newWidth = width;
+      let newHeight = height;
+
+      if (width > height) {
+        if (width > maxWidth) {
+          newWidth = maxWidth;
+          newHeight = Math.round((height * maxWidth) / width);
+        }
+      } else {
+        if (height > maxHeight) {
+          newHeight = maxHeight;
+          newWidth = Math.round((width * maxHeight) / height);
+        }
+      }
+
       const manipulatedImage = await ImageManipulator.manipulateAsync(
         uri,
-        [{ resize: { width: 800, height: 600 } }],
+        [{ resize: { width: newWidth, height: newHeight } }],
         { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
       );
 
       return manipulatedImage.uri;
     } catch (error) {
       console.error('Error resizing image:', error);
-      return uri;
+      return uri; // Fallback to the original URI if resizing fails
     }
   };
 
@@ -64,7 +86,7 @@ export default function CreateListingPage({ navigation }) {
 
     setUploading(true);
     try {
-      const resizedUri = await resizeImage(uri);
+      const resizedUri = await resizeImage(uri); // Resize the image before uploading
       const response = await fetch(resizedUri);
       const blob = await response.blob();
       const imageRef = ref(storage, `listings/${userProfile.id}/${Date.now()}.jpg`);
@@ -84,7 +106,7 @@ export default function CreateListingPage({ navigation }) {
           },
           async () => {
             const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-            resolve(downloadURL);
+            resolve(downloadURL); // Return the download URL
           }
         );
       });
@@ -104,7 +126,7 @@ export default function CreateListingPage({ navigation }) {
 
     try {
       setIsListingCreated(true);
-      const imagePath = await uploadImage(image);
+      const imagePath = await uploadImage(image); // Get the download URL
 
       const listingData = {
         imageUrl: imagePath,
