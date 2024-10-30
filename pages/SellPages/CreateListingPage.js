@@ -222,11 +222,11 @@ export default function CreateListingPage({ navigation }) {
           </View>
 
           <TouchableOpacity
-            style={[styles.createButton, uploading ? { backgroundColor: '#ccc' } : { backgroundColor: '#0070BA' }]}
+            style={[styles.createButton, uploading && { backgroundColor: '#ccc' }]}
             onPress={handleCreateListing}
-            disabled={uploading || isListingCreated} // Disable when uploading or listing is created
+            disabled={isListingCreated} // Disable button until navigation back to SellingPage
           >
-            <Text style={styles.createButtonText}>{uploading ? 'Uploading...' : 'Create Listing'}</Text>
+            <Text style={styles.createButtonText}>{isListingCreated ? 'Creating...' : 'Create Listing'}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
