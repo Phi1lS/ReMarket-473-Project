@@ -187,11 +187,11 @@ export default function CreateListingPage({ navigation }) {
             placeholderTextColor="#888"
           />
 
-          <TextInput
+           <TextInput
             style={styles.input}
-            placeholder="Price"
-            value={price}
-            onChangeText={(text) => setPrice(text.replace(/[^0-9.]/g, ''))}
+            placeholder="Price ($)"
+            value={price ? `$${price}` : ''} // Display with a dollar sign
+            onChangeText={(text) => setPrice(text.replace(/[^0-9.]/g, ''))} // Store only numeric values
             keyboardType="numeric"
             placeholderTextColor="#888"
           />
