@@ -44,32 +44,10 @@ export default function CreateListingPage({ navigation }) {
 
   const resizeImage = async (uri) => {
     try {
-      const { width, height } = await new Promise((resolve) => {
-        Image.getSize(uri, (w, h) => resolve({ width: w, height: h }));
-      });
-
-      // Maintain aspect ratio by calculating new dimensions
-      const maxWidth = 800;
-      const maxHeight = 600;
-      let newWidth = width;
-      let newHeight = height;
-
-      if (width > height) {
-        if (width > maxWidth) {
-          newWidth = maxWidth;
-          newHeight = Math.round((height * maxWidth) / width);
-        }
-      } else {
-        if (height > maxHeight) {
-          newHeight = maxHeight;
-          newWidth = Math.round((width * maxHeight) / height);
-        }
-      }
-
       const manipulatedImage = await ImageManipulator.manipulateAsync(
         uri,
-        [{ resize: { width: newWidth, height: newHeight } }],
-        { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
+        [{ resize: { width: 800, height: 600 } }],
+        { compress: 0.8, format: ImageManipulator.SaveFormat.PNG } // Use PNG to retain transparency
       );
 
       return manipulatedImage.uri;
@@ -89,7 +67,7 @@ export default function CreateListingPage({ navigation }) {
       const resizedUri = await resizeImage(uri); // Resize the image before uploading
       const response = await fetch(resizedUri);
       const blob = await response.blob();
-      const imageRef = ref(storage, `listings/${userProfile.id}/${Date.now()}.jpg`);
+      const imageRef = ref(storage, `listings/${userProfile.id}/${Date.now()}.png`); // Use PNG format for the image reference
 
       const uploadTask = uploadBytesResumable(imageRef, blob);
 
