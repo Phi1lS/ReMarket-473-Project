@@ -13,7 +13,7 @@ const categories = [
   'Electronics', 'Fashion', 'Home', 'Toys', 'Sports', 'Motors', 'Beauty', 'Books', 'Music', 'Collectibles'
 ];
 
-export default function CreateListingPage() {
+export default function CreateListingPage({ navigation }) {
   const { userProfile, setUserProfile } = useContext(UserContext);
   const [image, setImage] = useState(null);
   const [description, setDescription] = useState('');
@@ -21,7 +21,7 @@ export default function CreateListingPage() {
   const [quantity, setQuantity] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [uploading, setUploading] = useState(false);
-  const navigation = useNavigation();
+  const [isListingCreated, setIsListingCreated] = useState(false);
 
   const pickImage = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -46,13 +46,14 @@ export default function CreateListingPage() {
     try {
       const manipulatedImage = await ImageManipulator.manipulateAsync(
         uri,
-        [{ resize: { width: 800, height: 600 } }], // Resize to 800x600
-        { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG } // JPEG format with 80% quality
+        [{ resize: { width: 800, height: 600 } }],
+        { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
       );
-      return manipulatedImage.uri; // Return the resized image URI
+
+      return manipulatedImage.uri;
     } catch (error) {
       console.error('Error resizing image:', error);
-      return uri; // Fallback to the original URI if resizing fails
+      return uri;
     }
   };
 
@@ -63,10 +64,10 @@ export default function CreateListingPage() {
 
     setUploading(true);
     try {
-      const resizedUri = await resizeImage(uri); // Resize the image before uploading
+      const resizedUri = await resizeImage(uri);
       const response = await fetch(resizedUri);
       const blob = await response.blob();
-      const imageRef = ref(storage, `listings/${userProfile.id}/${Date.now()}.jpg`); // Set path in local storage
+      const imageRef = ref(storage, `listings/${userProfile.id}/${Date.now()}.jpg`);
 
       const uploadTask = uploadBytesResumable(imageRef, blob);
 
@@ -82,16 +83,16 @@ export default function CreateListingPage() {
             reject(error);
           },
           async () => {
-            setUploading(false);
-            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref); // Get the download URL
-            resolve(downloadURL); // Return the download URL
+            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+            resolve(downloadURL);
           }
         );
       });
     } catch (error) {
       console.error('Error during image upload:', error);
-      setUploading(false);
       throw error;
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -102,31 +103,28 @@ export default function CreateListingPage() {
     }
 
     try {
-      const imagePath = await uploadImage(image); // Get the download URL
+      setIsListingCreated(true);
+      const imagePath = await uploadImage(image);
 
       const listingData = {
-        imageUrl: imagePath, // Use the download URL
+        imageUrl: imagePath,
         description,
         price: parseFloat(price),
         quantity: parseInt(quantity, 10),
         category: selectedCategory,
         sellerId: userProfile.id,
         sellerName: `${userProfile.firstName || 'Unknown'} ${userProfile.lastName || ''}`,
-        sellerAvatar: `avatars/${userProfile.id}.jpg`, // Store avatar path in local storage
+        sellerAvatar: `avatars/${userProfile.id}.jpg`,
         createdAt: new Date(),
       };
 
-      // Add listing to the user's subcollection and get the auto-generated Firestore ID
       const userListingRef = await addDoc(collection(db, 'users', userProfile.id, 'listings'), listingData);
       const listingId = userListingRef.id;
 
-      // Update listing data with the Firestore ID
       const listingWithId = { ...listingData, id: listingId };
 
-      // Use the same ID in the marketplace collection
       await setDoc(doc(db, 'marketplace', listingId), listingWithId);
 
-      // Update the user profile context
       setUserProfile((prevProfile) => ({
         ...prevProfile,
         listings: [...(prevProfile.listings || []), listingWithId],
@@ -137,6 +135,8 @@ export default function CreateListingPage() {
     } catch (error) {
       console.error('Error creating listing:', error);
       Alert.alert('Error', 'Failed to create listing. Please try again.');
+    } finally {
+      setIsListingCreated(false);
     }
   };
 
@@ -165,22 +165,20 @@ export default function CreateListingPage() {
             placeholderTextColor="#888"
           />
 
-          {/* Item Price */}
           <TextInput
             style={styles.input}
             placeholder="Price"
-            value={price ? `$${price}` : ''}  // Display the $ symbol only if there's a value
-            onChangeText={(text) => setPrice(text.replace(/[^0-9.]/g, ''))}  // Allow only numbers and decimal points
+            value={price}
+            onChangeText={(text) => setPrice(text.replace(/[^0-9.]/g, ''))}
             keyboardType="numeric"
             placeholderTextColor="#888"
           />
 
-          {/* Quantity Input */}
           <TextInput
             style={styles.input}
             placeholder="Quantity"
             value={quantity}
-            onChangeText={setQuantity}
+            onChangeText={(text) => setQuantity(text.replace(/[^0-9]/g, ''))}
             keyboardType="numeric"
             placeholderTextColor="#888"
           />
@@ -202,9 +200,9 @@ export default function CreateListingPage() {
           </View>
 
           <TouchableOpacity
-            style={[styles.createButton, uploading && { backgroundColor: '#ccc' }]}
+            style={[styles.createButton, uploading ? { backgroundColor: '#ccc' } : { backgroundColor: '#0070BA' }]}
             onPress={handleCreateListing}
-            disabled={uploading}
+            disabled={uploading || isListingCreated} // Disable when uploading or listing is created
           >
             <Text style={styles.createButtonText}>{uploading ? 'Uploading...' : 'Create Listing'}</Text>
           </TouchableOpacity>
