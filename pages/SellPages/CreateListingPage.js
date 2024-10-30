@@ -7,6 +7,7 @@ import { UserContext } from '../../UserContext'; // Import UserContext for dynam
 import { auth, db, storage } from '../../firebaseConfig'; // Firebase imports
 import { collection, doc, addDoc, setDoc } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 const categories = [
   'Electronics', 'Fashion', 'Home', 'Toys', 'Sports', 'Motors', 'Beauty', 'Books', 'Music', 'Collectibles'
@@ -41,35 +42,57 @@ export default function CreateListingPage() {
     }
   };
 
+  const resizeImage = async (uri) => {
+    try {
+      const manipulatedImage = await ImageManipulator.manipulateAsync(
+        uri,
+        [{ resize: { width: 800, height: 600 } }], // Resize to 800x600
+        { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG } // JPEG format with 80% quality
+      );
+      return manipulatedImage.uri; // Return the resized image URI
+    } catch (error) {
+      console.error('Error resizing image:', error);
+      return uri; // Fallback to the original URI if resizing fails
+    }
+  };
+
   const uploadImage = async (uri) => {
     if (!uri) {
       throw new Error('Image URI is undefined');
     }
 
     setUploading(true);
-    const response = await fetch(uri);
-    const blob = await response.blob();
-    const imageRef = ref(storage, `listings/${userProfile.id}/${Date.now()}.jpg`); // Set path in local storage
+    try {
+      const resizedUri = await resizeImage(uri); // Resize the image before uploading
+      const response = await fetch(resizedUri);
+      const blob = await response.blob();
+      const imageRef = ref(storage, `listings/${userProfile.id}/${Date.now()}.jpg`); // Set path in local storage
 
-    const uploadTask = uploadBytesResumable(imageRef, blob);
+      const uploadTask = uploadBytesResumable(imageRef, blob);
 
-    return new Promise((resolve, reject) => {
-      uploadTask.on(
-        'state_changed',
-        (snapshot) => {
-          console.log(`Upload progress: ${snapshot.bytesTransferred}/${snapshot.totalBytes}`);
-        },
-        (error) => {
-          console.error('Upload failed:', error);
-          setUploading(false);
-          reject(error);
-        },
-        async () => {
-          setUploading(false);
-          resolve(imageRef.fullPath); // Return the path in Firebase Storage
-        }
-      );
-    });
+      return new Promise((resolve, reject) => {
+        uploadTask.on(
+          'state_changed',
+          (snapshot) => {
+            console.log(`Upload progress: ${snapshot.bytesTransferred}/${snapshot.totalBytes}`);
+          },
+          (error) => {
+            console.error('Upload failed:', error);
+            setUploading(false);
+            reject(error);
+          },
+          async () => {
+            setUploading(false);
+            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref); // Get the download URL
+            resolve(downloadURL); // Return the download URL
+          }
+        );
+      });
+    } catch (error) {
+      console.error('Error during image upload:', error);
+      setUploading(false);
+      throw error;
+    }
   };
 
   const handleCreateListing = async () => {
@@ -79,10 +102,10 @@ export default function CreateListingPage() {
     }
 
     try {
-      const imagePath = await uploadImage(image); // Get the local path
+      const imagePath = await uploadImage(image); // Get the download URL
 
       const listingData = {
-        imageUrl: imagePath, // Use the local path
+        imageUrl: imagePath, // Use the download URL
         description,
         price: parseFloat(price),
         quantity: parseInt(quantity, 10),
