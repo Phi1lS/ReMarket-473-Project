@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 10,
     marginRight: 10,
-    borderWidth: 1,
+    borderWidth: 0, //if border: 1, there is a teal border. Not sure if I want to keep. Off for now.
     borderColor: '#0070BA',
   },
   itemImage: {
