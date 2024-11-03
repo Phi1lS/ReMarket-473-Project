@@ -70,9 +70,8 @@ export default function ItemPage({ route }) {
 
         {/* Item Details */}
         <View style={styles.detailsContainer}>
-          <Text style={styles.itemName}>{item.name}</Text>
+          <Text style={styles.itemName}>{item.description}</Text>
           <Text style={styles.itemPrice}>${item.price}</Text>
-          <Text style={styles.itemDescription}>{item.description}</Text>
         </View>
 
         {/* Seller Information */}
@@ -146,8 +145,6 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     color: '#4CB0E6', // Updated to the new blue shade
-    marginTop: -20,
-    marginBottom: 15,
   },
   itemDescription: {
     fontSize: 16,
