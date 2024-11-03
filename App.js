@@ -24,6 +24,7 @@ import SearchUsersPage from './pages/HomePages/SearchUsersPage';
 import CartPage from './pages/ShopPages/CartPage';
 import CategoryPage from './pages/ShopPages/CategoryPage';
 import CheckoutPage from './pages/ShopPages/CheckoutPage';
+import ViewItemsPage from './pages/ShopPages/ViewItemsPage';
 import SettingsPage from './pages/ProfilePages/SettingsPage';
 import NotificationsPage from './pages/ProfilePages/NotificationsPage';
 import UserProfilePage from './pages/UserProfilePage';
@@ -180,6 +181,11 @@ function ShopStack() {
       <Stack.Screen 
         name="CheckoutPage" 
         component={CheckoutPage} 
+        options={{ title: '' }} 
+      />
+      <Stack.Screen 
+        name="ViewItemsPage" 
+        component={ViewItemsPage} 
         options={{ title: '' }} 
       />
       <Stack.Screen name="PaymentMethodsPage" component={PaymentMethodsPage} options={{ title: '' }} />

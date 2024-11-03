@@ -16,38 +16,37 @@ export default function ShopPage() {
   const { items } = useContext(UserContext);
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredItems, setFilteredItems] = useState([]);
-  const [itemImages, setItemImages] = useState({}); // Store image URLs
-  const [loadingImages, setLoadingImages] = useState({}); // Track loading states of each image
+  const [itemImages, setItemImages] = useState({}); 
+  const [loadingImages, setLoadingImages] = useState({}); 
 
   useEffect(() => {
     setFilteredItems(items);
-    fetchItemImages(items); // Fetch images when items change
+    fetchItemImages(items); 
   }, [items]);
 
-  // Function to fetch the image URLs for the items
   const fetchItemImages = async (items) => {
     const imageMap = {};
     const loadingMap = {};
     
     for (const item of items) {
-      loadingMap[item.id] = true; // Set loading to true for the item
+      loadingMap[item.id] = true; 
 
       if (item.imageUrl) {
         try {
-          const imageRef = ref(storage, item.imageUrl); // Use relative path
+          const imageRef = ref(storage, item.imageUrl); 
           const downloadURL = await getDownloadURL(imageRef);
-          imageMap[item.id] = downloadURL; // Map item id to its image URL
+          imageMap[item.id] = downloadURL; 
         } catch (error) {
           console.error(`Error fetching image for item ${item.id}:`, error);
         } finally {
-          loadingMap[item.id] = false; // Set loading to false after fetching
+          loadingMap[item.id] = false; 
         }
       } else {
-        loadingMap[item.id] = false; // No imageUrl, no loading needed
+        loadingMap[item.id] = false; 
       }
     }
-    setItemImages(imageMap); // Update state with image URLs
-    setLoadingImages(loadingMap); // Update loading state
+    setItemImages(imageMap); 
+    setLoadingImages(loadingMap); 
   };
 
   const handleSearch = (query) => {
@@ -67,7 +66,7 @@ export default function ShopPage() {
       if (a.createdAt && b.createdAt) {
         return b.createdAt.seconds - a.createdAt.seconds;
       }
-      return 0; // Return 0 if the timestamp is not available
+      return 0; 
     });
   };
 
@@ -83,13 +82,12 @@ export default function ShopPage() {
             style={styles.itemContainer}
             onPress={() => navigation.navigate('ItemPage', { item })}
           >
-            {/* Use the fetched image URL from the itemImages state */}
             {loadingImages[item.id] ? (
-              <ActivityIndicator size="small" color="#0070BA" /> // Show loader while fetching
+              <ActivityIndicator size="small" color="#0070BA" /> 
             ) : itemImages[item.id] ? (
               <Image source={{ uri: itemImages[item.id] }} style={styles.itemImage} />
             ) : (
-              <View style={styles.emptyImagePlaceholder} /> // Empty space if no image is available
+              <View style={styles.emptyImagePlaceholder} />
             )}
             <Text style={styles.itemName}>{item.description}</Text>
           </TouchableOpacity>
@@ -98,6 +96,17 @@ export default function ShopPage() {
       />
     </View>
   );
+
+  const renderViewAllButton = () => (
+    <TouchableOpacity
+      style={styles.viewAllButton}
+      onPress={() => navigation.navigate('ViewItemsPage')}
+    >
+      <Text style={styles.viewAllText}>View All</Text>
+    </TouchableOpacity>
+  );
+
+  const displayedItems = searchQuery ? filteredItems : sortItemsByDate(items).slice(0, 5);
 
   return (
     <View style={styles.container}>
@@ -128,11 +137,13 @@ export default function ShopPage() {
           renderItemsRow('Search Results', filteredItems)
         ) : (
           <>
-            {renderItemsRow('Recently Posted', sortItemsByDate(items))}
-            {renderItemsRow('Viewed by Friends', sortItemsByDate(items))}
-            {renderItemsRow('Recommended for You', sortItemsByDate(items))}
+            {renderItemsRow('Recently Posted', displayedItems)}
+            {renderItemsRow('Viewed by Friends', displayedItems)}
+            {renderItemsRow('Recommended for You', displayedItems)}
           </>
         )}
+
+        {searchQuery ? null : renderViewAllButton()}
 
         <Text style={styles.categoryTitle}>Search by Category</Text>
         <View style={styles.categoryContainer}>
@@ -140,7 +151,7 @@ export default function ShopPage() {
             <TouchableOpacity
               key={category}
               style={styles.categoryButton}
-              onPress={() => navigation.navigate('CategoryPage', { category })} // Navigate to CategoryPage
+              onPress={() => navigation.navigate('CategoryPage', { category })}
             >
               <Text style={styles.categoryText}>{category}</Text>
             </TouchableOpacity>
@@ -150,6 +161,7 @@ export default function ShopPage() {
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
@@ -244,5 +256,17 @@ const styles = StyleSheet.create({
     height: 85,
     backgroundColor: '#f0f0f0', // Optional: add a placeholder background color
     borderRadius: 8,
+  },
+  viewAllButton: {
+    backgroundColor: '#0070BA',
+    padding: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
+  },
+  viewAllText: {
+    color: '#fff',
+    fontSize: 16,
   },
 });
