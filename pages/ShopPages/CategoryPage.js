@@ -4,12 +4,15 @@ import { UserContext } from '../../UserContext'; // Import UserContext for items
 import { useNavigation } from '@react-navigation/native';
 import { getDownloadURL, ref } from 'firebase/storage';
 import { storage } from '../../firebaseConfig'; // Import Firebase storage config
+import { MaterialIcons } from '@expo/vector-icons'; // Import icons
 
 export default function CategoryPage({ route }) {
   const { category } = route.params; // Get category from navigation params
   const { items } = useContext(UserContext); // Access items from UserContext
   const navigation = useNavigation();
   const [categoryItems, setCategoryItems] = useState([]); // State to hold items with their image URLs
+  const [currentPage, setCurrentPage] = useState(1); // Current page for pagination
+  const itemsPerPage = 8; // Number of items to show per page
 
   // Fetch the image URLs for the items in the selected category
   useEffect(() => {
@@ -40,11 +43,17 @@ export default function CategoryPage({ route }) {
   // Sort the category items by date using createdAt timestamp
   const sortedCategoryItems = sortItemsByDate(categoryItems);
 
+  // Get the items to display for the current page
+  const displayedItems = sortedCategoryItems.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  
+  // Calculate total number of pages
+  const totalPages = Math.ceil(sortedCategoryItems.length / itemsPerPage);
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{category} Items</Text>
       <FlatList
-        data={sortedCategoryItems}
+        data={displayedItems}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <TouchableOpacity
@@ -56,6 +65,26 @@ export default function CategoryPage({ route }) {
           </TouchableOpacity>
         )}
       />
+      {/* Pagination Controls */}
+      <View style={styles.paginationContainer}>
+        <TouchableOpacity
+          style={styles.pageButton}
+          onPress={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+          disabled={currentPage === 1}
+        >
+          <MaterialIcons name="arrow-back-ios" size={24} color="white" />
+        </TouchableOpacity>
+
+        <Text style={styles.pageInfo}>Page {currentPage} of {totalPages}</Text>
+
+        <TouchableOpacity
+          style={styles.pageButton}
+          onPress={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+          disabled={currentPage === totalPages}
+        >
+          <MaterialIcons name="arrow-forward-ios" size={24} color="white" />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -95,5 +124,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
     flex: 1,
+  },
+  paginationContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 15,
+  },
+  pageButton: {
+    backgroundColor: '#0070BA',
+    borderRadius: 50,
+    padding: 10,
+    elevation: 5,
+    marginHorizontal: 10, // Space between buttons
+  },
+  pageInfo: {
+    fontSize: 16,
+    textAlign: 'center',
+    color: '#0070BA', // Color to match the theme
   },
 });
