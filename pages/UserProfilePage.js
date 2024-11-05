@@ -22,14 +22,23 @@ export default function UserProfilePage({ route, navigation }) {
 
   const handleAddFriend = async () => {
     setIsPending(true);
+  
     try {
+      // Make sure currentUser.id and userId are defined
+      if (!currentUser?.id || !userId) {
+        console.error("Current user ID or target user ID is missing.");
+        setIsPending(false);
+        return;
+      }
+  
       // Create friend request document in Firestore
-      await db.collection('friendRequests').add({
+      await addDoc(collection(db, 'friendRequests'), {
         senderId: currentUser.id,
         receiverId: userId,
         status: 'pending',
-        timestamp: new Date(),
+        timestamp: serverTimestamp(),
       });
+      console.log("Friend request sent successfully!");
     } catch (error) {
       console.error("Error sending friend request:", error);
       setIsPending(false); // Reset if an error occurs
