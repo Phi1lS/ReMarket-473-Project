@@ -2,20 +2,80 @@ import React, { useState, useEffect, useContext } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, ActivityIndicator } from 'react-native';
 import { Avatar } from 'react-native-paper';
 import { Ionicons } from 'react-native-vector-icons';
-import { UserContext } from '../UserContext'; // Import UserContext
-import { getDownloadURL, ref } from 'firebase/storage'; // Import Firebase storage functions
-import { db, storage } from '../firebaseConfig'; // Import Firebase config
-import fallbackAvatar from '../assets/avatar.png'; // Ensure you have a fallback avatar imported
-import { doc, getDoc, collection, onSnapshot } from 'firebase/firestore';
+import { UserContext } from '../UserContext';
+import { getDownloadURL, ref } from 'firebase/storage';
+import { db, storage } from '../firebaseConfig';
+import fallbackAvatar from '../assets/avatar.png';
+import { doc, getDoc, addDoc, collection, onSnapshot } from 'firebase/firestore';
 
 export default function UserProfilePage({ route, navigation }) {
   const { userId } = route.params;
+  const { currentUser } = useContext(UserContext); // Retrieve currentUser from UserContext
   const [user, setUser] = useState(null);
   const [selectedTab, setSelectedTab] = useState('activity');
   const [loading, setLoading] = useState(true);
   const [purchases, setPurchases] = useState([]);
-  const [userAvatarUrl, setUserAvatarUrl] = useState(null); // State to store user's avatar URL
-  const [purchasesWithImages, setPurchasesWithImages] = useState([]); // State to store purchases with images
+  const [userAvatarUrl, setUserAvatarUrl] = useState(null);
+  const [purchasesWithImages, setPurchasesWithImages] = useState([]);
+  const [isPending, setIsPending] = useState(false);
+  const [friendRequests, setFriendRequests] = useState([]); // Store incoming friend requests
+
+  const handleAddFriend = async () => {
+    setIsPending(true);
+    try {
+      // Create friend request document in Firestore
+      await db.collection('friendRequests').add({
+        senderId: currentUser.id,
+        receiverId: userId,
+        status: 'pending',
+        timestamp: new Date(),
+      });
+    } catch (error) {
+      console.error("Error sending friend request:", error);
+      setIsPending(false); // Reset if an error occurs
+    }
+  };
+
+  // Listen for incoming friend requests
+  useEffect(() => {
+    if (!currentUser) return;
+    const unsubscribe = db
+      .collection('friendRequests')
+      .where('receiverId', '==', currentUser.id)
+      .where('status', '==', 'pending')
+      .onSnapshot((snapshot) => {
+        const requests = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        setFriendRequests(requests);
+      });
+    return () => unsubscribe();
+  }, [currentUser]);
+
+  // Handle accepting or denying a friend request
+  const handleRequestResponse = async (requestId, status) => {
+    try {
+      await db.collection('friendRequests').doc(requestId).update({ status });
+    } catch (error) {
+      console.error("Error updating friend request:", error);
+    }
+  };
+
+  // Track changes to the sender’s friend request status
+  useEffect(() => {
+    if (!currentUser) return;
+    const unsubscribe = db
+      .collection('friendRequests')
+      .where('senderId', '==', currentUser.id)
+      .onSnapshot((snapshot) => {
+        snapshot.docs.forEach((doc) => {
+          const data = doc.data();
+          if (data.status !== 'pending') {
+            alert(`Your friend request was ${data.status}`);
+            setIsPending(false); // Reset pending status
+          }
+        });
+      });
+    return () => unsubscribe();
+  }, [currentUser]);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -23,21 +83,17 @@ export default function UserProfilePage({ route, navigation }) {
         console.error('Error: userId is undefined or null');
         return;
       }
-
       try {
         const userDoc = await getDoc(doc(db, 'users', userId));
-
         if (userDoc.exists()) {
           const userData = userDoc.data();
           setUser(userData);
-
-          // If avatar is a relative path, fetch the full URL
           if (userData.avatar) {
             const avatarRef = ref(storage, userData.avatar);
             const avatarUrl = await getDownloadURL(avatarRef);
-            setUserAvatarUrl(avatarUrl); // Store the full avatar URL
+            setUserAvatarUrl(avatarUrl);
           } else {
-            setUserAvatarUrl(null); // Use fallback if no avatar is available
+            setUserAvatarUrl(null);
           }
         } else {
           console.error('No such user exists in Firestore.');
@@ -70,7 +126,6 @@ export default function UserProfilePage({ route, navigation }) {
   }, [userId]);
 
   useEffect(() => {
-    // Fetch image URLs for each purchase
     const fetchPurchaseImages = async () => {
       const purchasesWithImagesList = await Promise.all(
         purchases.map(async (purchase) => {
@@ -95,7 +150,6 @@ export default function UserProfilePage({ route, navigation }) {
     }
   }, [purchases]);
 
-  // Function to sort purchases by timestamp (from most recent to oldest)
   const sortPurchasesByDate = (purchases) => {
     return purchases.sort((a, b) => b.timestamp.seconds - a.timestamp.seconds);
   };
@@ -135,10 +189,10 @@ export default function UserProfilePage({ route, navigation }) {
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ flexGrow: 1 }}>
       <View style={styles.header}>
-        <Avatar.Image 
-          size={90} 
-          source={userAvatarUrl ? { uri: userAvatarUrl } : fallbackAvatar} 
-          style={styles.avatar} 
+        <Avatar.Image
+          size={90}
+          source={userAvatarUrl ? { uri: userAvatarUrl } : fallbackAvatar}
+          style={styles.avatar}
         />
         <Text style={styles.name}>
           {user.firstName ? user.firstName : 'First Name'}{' '}
@@ -147,9 +201,9 @@ export default function UserProfilePage({ route, navigation }) {
         <Text style={styles.username}>
           {user.username ? user.username : 'No username available'}
         </Text>
-        <TouchableOpacity style={styles.addFriendButton}>
+        <TouchableOpacity style={styles.addFriendButton} onPress={handleAddFriend} disabled={isPending}>
           <Ionicons name="person-add-outline" size={24} color="#fff" />
-          <Text style={styles.addFriendText}>Add Friend</Text>
+          <Text style={styles.addFriendText}>{isPending ? 'Pending Request' : 'Add Friend'}</Text>
         </TouchableOpacity>
       </View>
 
