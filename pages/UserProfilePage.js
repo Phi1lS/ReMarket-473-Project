@@ -6,85 +6,109 @@ import { UserContext } from '../UserContext';
 import { getDownloadURL, ref } from 'firebase/storage';
 import { db, storage } from '../firebaseConfig';
 import fallbackAvatar from '../assets/avatar.png';
-import { doc, getDoc, addDoc, collection, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, addDoc, collection, onSnapshot, serverTimestamp, updateDoc } from 'firebase/firestore';
 
 export default function UserProfilePage({ route, navigation }) {
   const { userId } = route.params;
-  const { currentUser } = useContext(UserContext); // Retrieve currentUser from UserContext
+  const { userProfile } = useContext(UserContext);
   const [user, setUser] = useState(null);
-  const [selectedTab, setSelectedTab] = useState('activity');
-  const [loading, setLoading] = useState(true);
-  const [purchases, setPurchases] = useState([]);
-  const [userAvatarUrl, setUserAvatarUrl] = useState(null);
-  const [purchasesWithImages, setPurchasesWithImages] = useState([]);
-  const [isPending, setIsPending] = useState(false);
-  const [friendRequests, setFriendRequests] = useState([]); // Store incoming friend requests
-
-  const handleAddFriend = async () => {
-    setIsPending(true);
+  const [friendRequests, setFriendRequests] = useState([]);
   
-    try {
-      // Make sure currentUser.id and userId are defined
-      if (!currentUser?.id || !userId) {
-        console.error("Current user ID or target user ID is missing.");
-        setIsPending(false);
-        return;
-      }
-  
-      // Create friend request document in Firestore
-      await addDoc(collection(db, 'friendRequests'), {
-        senderId: currentUser.id,
-        receiverId: userId,
-        status: 'pending',
-        timestamp: serverTimestamp(),
-      });
-      console.log("Friend request sent successfully!");
-    } catch (error) {
-      console.error("Error sending friend request:", error);
-      setIsPending(false); // Reset if an error occurs
-    }
-  };
-
-  // Listen for incoming friend requests
   useEffect(() => {
-    if (!currentUser) return;
-    const unsubscribe = db
-      .collection('friendRequests')
-      .where('receiverId', '==', currentUser.id)
-      .where('status', '==', 'pending')
-      .onSnapshot((snapshot) => {
-        const requests = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    // Load friend requests for logged-in user
+    if (!userProfile.id) return;
+
+    const unsubscribe = onSnapshot(
+      collection(db, 'friendRequests'),
+      (snapshot) => {
+        const requests = snapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() }))
+          .filter(doc => doc.receiverId === userProfile.id && doc.status === 'pending');
+
         setFriendRequests(requests);
-      });
-    return () => unsubscribe();
-  }, [currentUser]);
+      }
+    );
 
-  // Handle accepting or denying a friend request
-  const handleRequestResponse = async (requestId, status) => {
+    return () => unsubscribe();
+  }, [userProfile.id]);
+
+  const renderFriendRequest = (request) => (
+    <View key={request.id} style={styles.friendRequestContainer}>
+      <Text style={styles.friendRequestText}>
+        {request.senderId} wants to be your friend
+      </Text>
+      <View style={styles.friendRequestButtons}>
+        <TouchableOpacity
+          style={styles.confirmButton}
+          onPress={() => confirmFriendRequest(request.id, request.senderId)}
+        >
+          <Text style={styles.buttonText}>Confirm</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.denyButton}
+          onPress={() => denyFriendRequest(request.id)}
+        >
+          <Text style={styles.buttonText}>Deny</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  return (
+    <ScrollView style={styles.container} contentContainerStyle={{ flexGrow: 1 }}>
+      {/* Friend Requests Section */}
+      {userProfile.id && friendRequests.length > 0 && (
+        <View style={styles.friendRequestsSection}>
+          <Text style={styles.friendRequestsHeader}>Friend Requests</Text>
+          {friendRequests.map(request => renderFriendRequest(request))}
+        </View>
+      )}
+
+      {/* Other Profile Elements */}
+    </ScrollView>
+  );
+}
+
+
+  const confirmFriendRequest = async (requestId, senderId) => {
     try {
-      await db.collection('friendRequests').doc(requestId).update({ status });
+      await updateDoc(doc(db, 'friendRequests', requestId), { status: 'accepted' });
+
+      await addDoc(collection(db, 'users', userProfile.id, 'friends'), { friendId: senderId });
+      await addDoc(collection(db, 'users', senderId, 'friends'), { friendId: userProfile.id });
+
+      console.log("Friend request accepted");
     } catch (error) {
-      console.error("Error updating friend request:", error);
+      console.error("Error accepting friend request:", error);
     }
   };
 
-  // Track changes to the sender’s friend request status
+  const denyFriendRequest = async (requestId) => {
+    try {
+      await updateDoc(doc(db, 'friendRequests', requestId), { status: 'denied' });
+      console.log("Friend request denied");
+    } catch (error) {
+      console.error("Error denying friend request:", error);
+    }
+  };
+
   useEffect(() => {
-    if (!currentUser) return;
-    const unsubscribe = db
-      .collection('friendRequests')
-      .where('senderId', '==', currentUser.id)
-      .onSnapshot((snapshot) => {
-        snapshot.docs.forEach((doc) => {
-          const data = doc.data();
-          if (data.status !== 'pending') {
-            alert(`Your friend request was ${data.status}`);
-            setIsPending(false); // Reset pending status
-          }
-        });
-      });
+    if (!userProfile.id) return; // Only fetch if user is logged in
+  
+    const unsubscribe = onSnapshot(
+      collection(db, 'friendRequests'),
+      (snapshot) => {
+        const requests = snapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() }))
+          .filter(doc => doc.receiverId === userProfile.id && doc.status === 'pending'); // Filter pending requests for logged-in user
+  
+        setFriendRequests(requests);
+      }
+    );
+  
     return () => unsubscribe();
-  }, [currentUser]);
+  }, [userProfile.id]);
+  
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -142,13 +166,13 @@ export default function UserProfilePage({ route, navigation }) {
             try {
               const imageRef = ref(storage, purchase.imageUrl);
               const fullImageUrl = await getDownloadURL(imageRef);
-              return { ...purchase, imageUrl: fullImageUrl }; // Add full image URL to the purchase
+              return { ...purchase, imageUrl: fullImageUrl };
             } catch (error) {
               console.warn(`Failed to fetch image for purchase ${purchase.id}:`, error);
-              return purchase; // Return purchase without updating imageUrl on error
+              return purchase;
             }
           }
-          return purchase; // Return purchase if no imageUrl is provided
+          return purchase;
         })
       );
       setPurchasesWithImages(purchasesWithImagesList);
@@ -165,17 +189,25 @@ export default function UserProfilePage({ route, navigation }) {
 
   const handleTabSwitch = (tab) => setSelectedTab(tab);
 
-  const renderPurchaseItem = (item) => (
-    <View key={item.id} style={styles.purchaseItemContainer}>
-      <View style={styles.purchaseItem}>
-        <Image source={{ uri: item.imageUrl }} style={styles.purchaseImage} />
-        <View style={styles.purchaseDetails}>
-          <Text style={styles.purchaseTitle}>{item.itemName}</Text>
-          <Text style={styles.purchaseText}>{item.message || 'No message'}</Text>
-          <Text style={styles.purchaseText}>{new Date(item.timestamp?.seconds * 1000).toLocaleDateString()}</Text>
-        </View>
+  const renderFriendRequest = (request) => (
+    <View key={request.id} style={styles.friendRequestContainer}>
+      <Text style={styles.friendRequestText}>
+        {request.senderId} wants to be your friend
+      </Text>
+      <View style={styles.friendRequestButtons}>
+        <TouchableOpacity
+          style={styles.confirmButton}
+          onPress={() => confirmFriendRequest(request.id, request.senderId)}
+        >
+          <Text style={styles.buttonText}>Confirm</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.denyButton}
+          onPress={() => denyFriendRequest(request.id)}
+        >
+          <Text style={styles.buttonText}>Deny</Text>
+        </TouchableOpacity>
       </View>
-      <View style={styles.separator} />
     </View>
   );
 
@@ -248,10 +280,22 @@ export default function UserProfilePage({ route, navigation }) {
           <Text style={styles.noTransactions}>No friends yet.</Text>
         </View>
       )}
+
+      <View>
+        {userProfile.id === userId && friendRequests.map(request => renderFriendRequest(request))}
+      </View>
+      {userProfile.id && friendRequests.length > 0 && (
+      <View style={styles.friendRequestsSection}>
+        <Text style={styles.friendRequestsHeader}>Friend Requests</Text>
+        {friendRequests.map(request => renderFriendRequest(request))}
+      </View>
+)}
+
     </ScrollView>
   );
 }
 
+// Define all your styles here, including those for the new components
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -292,8 +336,8 @@ const styles = StyleSheet.create({
   },
   tabContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around', // Adjust spacing
-    marginHorizontal: 20, // Add horizontal margin
+    justifyContent: 'space-around',
+    marginHorizontal: 20,
     marginBottom: 20,
     backgroundColor: '#e0e0e0',
     borderRadius: 15,
@@ -318,7 +362,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 15,
     padding: 20,
-    marginHorizontal: 20, // Add margins to ensure it's not full width
+    marginHorizontal: 20,
   },
   purchaseItemContainer: {
     backgroundColor: '#fff',
@@ -359,7 +403,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 15,
     padding: 20,
-    marginHorizontal: 20, // Ensure same margins for friends section
+    marginHorizontal: 20,
   },
   loadingContainer: {
     flex: 1,
