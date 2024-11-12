@@ -168,6 +168,11 @@ function ShopStack() {
         component={ItemPage} 
         options={{ title: 'Item Details' }} 
       />
+      <Stack.Screen
+        name="UserProfilePage"
+        component={UserProfilePage} 
+        options={{ title: 'User Profile' }} 
+      />
       <Stack.Screen 
         name="CartPage" 
         component={CartPage} 
