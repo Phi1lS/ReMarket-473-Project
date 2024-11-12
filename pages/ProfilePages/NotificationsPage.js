@@ -116,45 +116,56 @@ export default function NotificationsPage() {
     }
   };
 
-  const renderNotification = ({ item }) => {
-    let notificationText = '';
-    if (item.type === 'friendRequest') {
-      notificationText = `${item.senderName} has sent you a friend request.`;
-    } else if (item.type === 'purchase') {
-      notificationText = `${item.buyerName} bought ${item.quantity} of ${item.itemName}`;
-    } else if (item.type === 'friendAccepted') {
-      notificationText = `You are now friends with ${item.friendName}.`;
-    }
-
-    let displayDate = 'No date available';
-    if (item.timestamp && item.timestamp.seconds) {
-      displayDate = new Date(item.timestamp.seconds * 1000).toLocaleDateString();
-    }
-
-    return (
-      <View style={styles.notificationItem}>
-        <Text style={styles.notificationText}>{notificationText}</Text>
-        <Text style={styles.notificationDate}>{displayDate}</Text>
-        
-        {item.type === 'friendRequest' && (
-          <View style={styles.friendRequestButtons}>
-            <TouchableOpacity
-              style={styles.acceptButton}
-              onPress={() => acceptFriendRequest(item)}
-            >
-              <Text style={styles.buttonText}>Accept</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.denyButton}
-              onPress={() => denyFriendRequest(item)}
-            >
-              <Text style={styles.buttonText}>Deny</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
-    );
-  };
+  const renderNotification = ({ item }) => (
+    <View style={styles.notificationItem}>
+      {/* Main Notification Content Based on Type */}
+      {item.type === 'purchase' && (
+        <>
+          <Text style={styles.notificationText}>
+            {item.buyerName} bought {item.quantity} of {item.itemName}
+          </Text>
+          {item.message && (
+            <Text style={styles.notificationMessage}>Message: {item.message}</Text>
+          )}
+        </>
+      )}
+      
+      {item.type === 'friendRequest' && (
+        <Text style={styles.notificationText}>
+          {item.senderName} has sent you a friend request.
+        </Text>
+      )}
+  
+      {item.type === 'friendAccepted' && (
+        <Text style={styles.notificationText}>
+          You are now friends with {item.friendName}.
+        </Text>
+      )}
+  
+      {/* Notification Date */}
+      <Text style={styles.notificationDate}>
+        {new Date(item.timestamp?.seconds * 1000).toLocaleDateString()}
+      </Text>
+  
+      {/* Friend Request Actions */}
+      {item.type === 'friendRequest' && (
+        <View style={styles.friendRequestButtons}>
+          <TouchableOpacity
+            style={styles.acceptButton}
+            onPress={() => acceptFriendRequest(item)}
+          >
+            <Text style={styles.buttonText}>Accept</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.denyButton}
+            onPress={() => denyFriendRequest(item)}
+          >
+            <Text style={styles.buttonText}>Deny</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
+  );
 
   return (
     <View style={styles.container}>
