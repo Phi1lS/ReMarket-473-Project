@@ -6,116 +6,23 @@ import { UserContext } from '../UserContext';
 import { getDownloadURL, ref } from 'firebase/storage';
 import { db, storage } from '../firebaseConfig';
 import fallbackAvatar from '../assets/avatar.png';
-import { doc, getDoc, addDoc, collection, onSnapshot, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, addDoc, collection, onSnapshot, serverTimestamp, updateDoc, query, where, getDocs } from 'firebase/firestore';
 
 export default function UserProfilePage({ route, navigation }) {
   const { userId } = route.params;
-  const { userProfile } = useContext(UserContext);
+  const { userProfile, sendFriendRequest } = useContext(UserContext);
   const [user, setUser] = useState(null);
-  const [friendRequests, setFriendRequests] = useState([]);
-  
-  useEffect(() => {
-    // Load friend requests for logged-in user
-    if (!userProfile.id) return;
-
-    const unsubscribe = onSnapshot(
-      collection(db, 'friendRequests'),
-      (snapshot) => {
-        const requests = snapshot.docs
-          .map(doc => ({ id: doc.id, ...doc.data() }))
-          .filter(doc => doc.receiverId === userProfile.id && doc.status === 'pending');
-
-        setFriendRequests(requests);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [userProfile.id]);
-
-  const renderFriendRequest = (request) => (
-    <View key={request.id} style={styles.friendRequestContainer}>
-      <Text style={styles.friendRequestText}>
-        {request.senderId} wants to be your friend
-      </Text>
-      <View style={styles.friendRequestButtons}>
-        <TouchableOpacity
-          style={styles.confirmButton}
-          onPress={() => confirmFriendRequest(request.id, request.senderId)}
-        >
-          <Text style={styles.buttonText}>Confirm</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.denyButton}
-          onPress={() => denyFriendRequest(request.id)}
-        >
-          <Text style={styles.buttonText}>Deny</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
-  return (
-    <ScrollView style={styles.container} contentContainerStyle={{ flexGrow: 1 }}>
-      {/* Friend Requests Section */}
-      {userProfile.id && friendRequests.length > 0 && (
-        <View style={styles.friendRequestsSection}>
-          <Text style={styles.friendRequestsHeader}>Friend Requests</Text>
-          {friendRequests.map(request => renderFriendRequest(request))}
-        </View>
-      )}
-
-      {/* Other Profile Elements */}
-    </ScrollView>
-  );
-}
-
-
-  const confirmFriendRequest = async (requestId, senderId) => {
-    try {
-      await updateDoc(doc(db, 'friendRequests', requestId), { status: 'accepted' });
-
-      await addDoc(collection(db, 'users', userProfile.id, 'friends'), { friendId: senderId });
-      await addDoc(collection(db, 'users', senderId, 'friends'), { friendId: userProfile.id });
-
-      console.log("Friend request accepted");
-    } catch (error) {
-      console.error("Error accepting friend request:", error);
-    }
-  };
-
-  const denyFriendRequest = async (requestId) => {
-    try {
-      await updateDoc(doc(db, 'friendRequests', requestId), { status: 'denied' });
-      console.log("Friend request denied");
-    } catch (error) {
-      console.error("Error denying friend request:", error);
-    }
-  };
-
-  useEffect(() => {
-    if (!userProfile.id) return; // Only fetch if user is logged in
-  
-    const unsubscribe = onSnapshot(
-      collection(db, 'friendRequests'),
-      (snapshot) => {
-        const requests = snapshot.docs
-          .map(doc => ({ id: doc.id, ...doc.data() }))
-          .filter(doc => doc.receiverId === userProfile.id && doc.status === 'pending'); // Filter pending requests for logged-in user
-  
-        setFriendRequests(requests);
-      }
-    );
-  
-    return () => unsubscribe();
-  }, [userProfile.id]);
-  
+  const [userAvatarUrl, setUserAvatarUrl] = useState(null);
+  const [selectedTab, setSelectedTab] = useState('activity');
+  const [purchases, setPurchases] = useState([]);
+  const [purchasesWithImages, setPurchasesWithImages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isPending, setIsPending] = useState(false);
+  const [isFriend, setIsFriend] = useState(false); // New state to track friendship status
 
   useEffect(() => {
     const fetchUserData = async () => {
-      if (!userId) {
-        console.error('Error: userId is undefined or null');
-        return;
-      }
+      if (!userId) return;
       try {
         const userDoc = await getDoc(doc(db, 'users', userId));
         if (userDoc.exists()) {
@@ -125,8 +32,6 @@ export default function UserProfilePage({ route, navigation }) {
             const avatarRef = ref(storage, userData.avatar);
             const avatarUrl = await getDownloadURL(avatarRef);
             setUserAvatarUrl(avatarUrl);
-          } else {
-            setUserAvatarUrl(null);
           }
         } else {
           console.error('No such user exists in Firestore.');
@@ -137,7 +42,30 @@ export default function UserProfilePage({ route, navigation }) {
         setLoading(false);
       }
     };
-
+  
+    const checkFriendStatus = async () => {
+      if (!userProfile.id || !userId) return;
+    
+      try {
+        // Reference the friends subcollection for the current user
+        const friendsRef = collection(db, 'users', userProfile.id, 'friends');
+        const q = query(friendsRef, where("friendId", "==", userId));
+    
+        // Execute the query
+        const querySnapshot = await getDocs(q);
+    
+        if (!querySnapshot.empty) {
+          console.log("Users are already friends.");
+          setIsFriend(true); // Set isFriend to true if the friendId is found
+        } else {
+          console.log("Users are not friends.");
+          setIsFriend(false); // Set isFriend to false if no matching friendId is found
+        }
+      } catch (error) {
+        console.error('Error checking friend status:', error);
+      }
+    };
+  
     const fetchUserPurchases = () => {
       const purchasesRef = collection(db, 'users', userId, 'purchases');
       const unsubscribe = onSnapshot(purchasesRef, (querySnapshot) => {
@@ -149,14 +77,13 @@ export default function UserProfilePage({ route, navigation }) {
       });
       return unsubscribe;
     };
-
+  
     fetchUserData();
+    checkFriendStatus(); // Check if the current user is friends with this profile
     const unsubscribePurchases = fetchUserPurchases();
-
-    return () => {
-      unsubscribePurchases();
-    };
-  }, [userId]);
+  
+    return () => unsubscribePurchases();
+  }, [userId, userProfile.id]);
 
   useEffect(() => {
     const fetchPurchaseImages = async () => {
@@ -189,25 +116,24 @@ export default function UserProfilePage({ route, navigation }) {
 
   const handleTabSwitch = (tab) => setSelectedTab(tab);
 
-  const renderFriendRequest = (request) => (
-    <View key={request.id} style={styles.friendRequestContainer}>
-      <Text style={styles.friendRequestText}>
-        {request.senderId} wants to be your friend
-      </Text>
-      <View style={styles.friendRequestButtons}>
-        <TouchableOpacity
-          style={styles.confirmButton}
-          onPress={() => confirmFriendRequest(request.id, request.senderId)}
-        >
-          <Text style={styles.buttonText}>Confirm</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.denyButton}
-          onPress={() => denyFriendRequest(request.id)}
-        >
-          <Text style={styles.buttonText}>Deny</Text>
-        </TouchableOpacity>
+  const handleAddFriend = () => {
+    if (userProfile.id) {
+      sendFriendRequest(userId);
+      setIsPending(true);
+    }
+  };
+
+  const renderPurchaseItem = (item) => (
+    <View key={item.id} style={styles.purchaseItemContainer}>
+      <View style={styles.purchaseItem}>
+        <Image source={{ uri: item.imageUrl }} style={styles.purchaseImage} />
+        <View style={styles.purchaseDetails}>
+          <Text style={styles.purchaseTitle}>{item.itemName}</Text>
+          <Text style={styles.purchaseText}>{item.message || 'No message'}</Text>
+          <Text style={styles.purchaseText}>{new Date(item.timestamp?.seconds * 1000).toLocaleDateString()}</Text>
+        </View>
       </View>
+      <View style={styles.separator} />
     </View>
   );
 
@@ -242,9 +168,19 @@ export default function UserProfilePage({ route, navigation }) {
         <Text style={styles.username}>
           {user.username ? user.username : 'No username available'}
         </Text>
-        <TouchableOpacity style={styles.addFriendButton} onPress={handleAddFriend} disabled={isPending}>
-          <Ionicons name="person-add-outline" size={24} color="#fff" />
-          <Text style={styles.addFriendText}>{isPending ? 'Pending Request' : 'Add Friend'}</Text>
+        <TouchableOpacity 
+          style={styles.addFriendButton} 
+          onPress={handleAddFriend} 
+          disabled={isPending || isFriend}
+        >
+           <Ionicons 
+            name={isFriend ? "checkmark-circle" : "person-add-outline"} 
+            size={24} 
+            color="#fff" 
+          />
+          <Text style={styles.addFriendText}>
+            {isFriend ? 'Friends' : isPending ? 'Pending Request' : 'Add Friend'}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -280,17 +216,6 @@ export default function UserProfilePage({ route, navigation }) {
           <Text style={styles.noTransactions}>No friends yet.</Text>
         </View>
       )}
-
-      <View>
-        {userProfile.id === userId && friendRequests.map(request => renderFriendRequest(request))}
-      </View>
-      {userProfile.id && friendRequests.length > 0 && (
-      <View style={styles.friendRequestsSection}>
-        <Text style={styles.friendRequestsHeader}>Friend Requests</Text>
-        {friendRequests.map(request => renderFriendRequest(request))}
-      </View>
-)}
-
     </ScrollView>
   );
 }

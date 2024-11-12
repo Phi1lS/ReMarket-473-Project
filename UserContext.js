@@ -16,7 +16,7 @@ export const UserProvider = ({ children }) => {
     paymentMethods: [],
     listings: [],
     users: [],
-    purchases: [], // Field for purchases
+    purchases: [],
   });
   const [items, setItems] = useState([]);
   const [cart, setCart] = useState([]);
@@ -144,9 +144,9 @@ export const UserProvider = ({ children }) => {
       if (marketplaceDoc.exists()) {
         const marketplaceData = marketplaceDoc.data();
   
-        // Add the purchase to the buyer's 'purchases' subcollection
         const purchaseRef = collection(db, 'users', userProfile.id, 'purchases');
         await addDoc(purchaseRef, {
+          type: 'purchase',
           itemId: purchaseItem.itemId,
           itemName: purchaseItem.itemName,
           price: purchaseItem.price,
@@ -154,11 +154,10 @@ export const UserProvider = ({ children }) => {
           message: purchaseItem.message,
           imageUrl: marketplaceData.imageUrl || '',
           timestamp: serverTimestamp(),
-          userName: `${userProfile.firstName} ${userProfile.lastName}`, // Buyer name
+          userName: `${userProfile.firstName} ${userProfile.lastName}`,
         });
   
-        // Add a notification to the seller's 'notifications' subcollection
-        const sellerId = marketplaceData.sellerId; // Assuming the seller ID is stored in marketplace data
+        const sellerId = marketplaceData.sellerId;
         const sellerNotificationsRef = collection(db, 'users', sellerId, 'notifications');
         await addDoc(sellerNotificationsRef, {
           buyerName: `${userProfile.firstName} ${userProfile.lastName}`,
@@ -166,7 +165,7 @@ export const UserProvider = ({ children }) => {
           itemName: purchaseItem.itemName,
           quantity: purchaseItem.quantity,
           timestamp: serverTimestamp(),
-          message: purchaseItem.message || '', // Optional message from buyer
+          message: purchaseItem.message || '',
         });
   
         console.log("Purchase added with notification to the seller:", purchaseItem);
@@ -232,6 +231,34 @@ export const UserProvider = ({ children }) => {
     }
   };
 
+  const sendFriendRequest = async (receiverId) => {
+    try {
+      // Add the friend request to the friendRequests collection
+      const friendRequestRef = collection(db, 'friendRequests');
+      await addDoc(friendRequestRef, {
+        senderId: userProfile.id,
+        receiverId,
+        status: 'pending',
+        timestamp: serverTimestamp(),
+      });
+  
+      // Add a notification to the receiver's notifications subcollection
+      const notificationsRef = collection(db, 'users', receiverId, 'notifications');
+      await addDoc(notificationsRef, {
+        type: 'friendRequest',
+        senderId: userProfile.id,
+        senderName: `${userProfile.firstName} ${userProfile.lastName}`,
+        message: `${userProfile.firstName} ${userProfile.lastName} has sent you a friend request.`,
+        timestamp: serverTimestamp(),
+        status: 'unread',
+      });
+  
+      console.log(`Friend request sent to user ${receiverId} with notification.`);
+    } catch (error) {
+      console.error('Error sending friend request:', error);
+    }
+  };
+
   return (
     <UserContext.Provider value={{
       userProfile,
@@ -243,7 +270,8 @@ export const UserProvider = ({ children }) => {
       removeFromCart,
       addPaymentMethod,
       removePaymentMethod,
-      addPurchase, // New function to add a purchase
+      addPurchase,
+      sendFriendRequest,
     }}>
       {children}
     </UserContext.Provider>
