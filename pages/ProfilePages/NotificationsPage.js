@@ -25,57 +25,61 @@ export default function NotificationsPage() {
     return () => unsubscribe();
   }, [userProfile.id]);
 
+  useEffect(() => {
+    const markNotificationsAsRead = async () => {
+      const unreadNotifications = notifications.filter(notification => notification.status === 'unread');
+      const updatePromises = unreadNotifications.map((notification) =>
+        updateDoc(doc(db, 'users', userProfile.id, 'notifications', notification.id), { status: 'read' })
+      );
+      await Promise.all(updatePromises);
+    };
+
+    if (notifications.length > 0) {
+      markNotificationsAsRead();
+    }
+  }, [notifications, userProfile.id]);
+
   const acceptFriendRequest = async (notification) => {
     try {
       const friendRequestsRef = collection(db, 'friendRequests');
-  
-      // Query for the specific friend request by sender and receiver IDs
       const q = query(
         friendRequestsRef,
         where('receiverId', '==', userProfile.id),
         where('senderId', '==', notification.senderId),
         where('status', '==', 'pending')
       );
-  
       const querySnapshot = await getDocs(q);
-  
+
       if (querySnapshot.empty) {
         console.log("No pending friend request document found for this sender and receiver.");
         return;
       }
-  
-      // Assuming only one document matches this query
+
       const friendRequestDoc = querySnapshot.docs[0];
-  
-      // Update the friend request document to mark it as accepted
       await updateDoc(friendRequestDoc.ref, { status: 'accepted' });
-  
-      // Add each user as a friend to the other
+
       await addDoc(collection(db, 'users', userProfile.id, 'friends'), { friendId: notification.senderId });
       await addDoc(collection(db, 'users', notification.senderId, 'friends'), { friendId: userProfile.id });
-  
-      // Delete the original notification about the friend request
-      const notificationRef = doc(db, 'users', userProfile.id, 'notifications', notification.id);
-      await deleteDoc(notificationRef);
-  
-      // Add "friendAccepted" notifications for both users
+
+      await deleteDoc(doc(db, 'users', userProfile.id, 'notifications', notification.id));
+
       const userNotificationRef = collection(db, 'users', userProfile.id, 'notifications');
       const senderNotificationRef = collection(db, 'users', notification.senderId, 'notifications');
-  
+
       await addDoc(userNotificationRef, {
         type: 'friendAccepted',
         friendName: notification.senderName,
         timestamp: serverTimestamp(),
         status: 'unread',
       });
-  
+
       await addDoc(senderNotificationRef, {
         type: 'friendAccepted',
         friendName: `${userProfile.firstName} ${userProfile.lastName}`,
         timestamp: serverTimestamp(),
         status: 'unread',
       });
-  
+
       console.log("Friend request accepted, notifications sent, and friend request status updated.");
     } catch (error) {
       console.error("Error accepting friend request:", error);
@@ -85,34 +89,27 @@ export default function NotificationsPage() {
   const denyFriendRequest = async (notification) => {
     try {
       const friendRequestsRef = collection(db, 'friendRequests');
-  
-      // Query for the specific friend request by sender and receiver IDs
       const q = query(
         friendRequestsRef,
         where('receiverId', '==', userProfile.id),
         where('senderId', '==', notification.senderId),
         where('status', '==', 'pending')
       );
-  
       const querySnapshot = await getDocs(q);
-  
+
       if (querySnapshot.empty) {
         console.log("No pending friend request document found for this sender and receiver.");
         return;
       }
-  
-      // Assuming only one document matches this query
+
       const friendRequestDoc = querySnapshot.docs[0];
-  
-      // Delete the friend request document
       await deleteDoc(friendRequestDoc.ref);
       console.log("Friend request deleted.");
-  
-      // Delete the notification document from the receiver's notifications subcollection
+
       const notificationRef = doc(db, 'users', userProfile.id, 'notifications', notification.id);
       await deleteDoc(notificationRef);
       console.log("Notification deleted.");
-  
+
       console.log("Friend request denied and corresponding notification removed.");
     } catch (error) {
       console.error("Error denying friend request:", error);
@@ -121,8 +118,6 @@ export default function NotificationsPage() {
 
   const renderNotification = ({ item }) => {
     let notificationText = '';
-  
-    // Set the notification message based on type
     if (item.type === 'friendRequest') {
       notificationText = `${item.senderName} has sent you a friend request.`;
     } else if (item.type === 'purchase') {
@@ -130,19 +125,17 @@ export default function NotificationsPage() {
     } else if (item.type === 'friendAccepted') {
       notificationText = `You are now friends with ${item.friendName}.`;
     }
-  
-    // Handle cases where timestamp might be null or missing
+
     let displayDate = 'No date available';
     if (item.timestamp && item.timestamp.seconds) {
       displayDate = new Date(item.timestamp.seconds * 1000).toLocaleDateString();
     }
-  
+
     return (
       <View style={styles.notificationItem}>
         <Text style={styles.notificationText}>{notificationText}</Text>
         <Text style={styles.notificationDate}>{displayDate}</Text>
         
-        {/* Render Accept/Deny buttons for friend requests */}
         {item.type === 'friendRequest' && (
           <View style={styles.friendRequestButtons}>
             <TouchableOpacity

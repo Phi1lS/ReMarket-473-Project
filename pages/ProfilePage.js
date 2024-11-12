@@ -3,17 +3,19 @@ import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Platform }
 import { Ionicons } from 'react-native-vector-icons';
 import { Avatar } from 'react-native-paper';
 import { UserContext } from '../UserContext';
-import { getDownloadURL, ref } from 'firebase/storage'; // Import Firebase storage functions
-import { storage } from '../firebaseConfig'; // Import Firebase config
+import { getDownloadURL, ref } from 'firebase/storage';
+import { storage, db } from '../firebaseConfig';
 import { useFocusEffect } from '@react-navigation/native';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
 const avatarPlaceholder = require('../assets/avatar.png');
 
 export default function ProfilePage({ navigation }) {
   const { userProfile } = useContext(UserContext);
   const [selectedTab, setSelectedTab] = useState('wallet');
-  const [avatarUrl, setAvatarUrl] = useState(null); // State to store full avatar URL
-  const [purchasesWithImages, setPurchasesWithImages] = useState([]); // Store purchases with images
+  const [avatarUrl, setAvatarUrl] = useState(null);
+  const [purchasesWithImages, setPurchasesWithImages] = useState([]);
+  const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -32,32 +34,48 @@ export default function ProfilePage({ navigation }) {
         }
       };
 
+      const checkUnreadNotifications = () => {
+        if (!userProfile.id) return;
+
+        const notificationsRef = collection(db, 'users', userProfile.id, 'notifications');
+        const unreadQuery = query(notificationsRef, where('status', '==', 'unread'));
+        
+        // Listen for changes in unread notifications
+        const unsubscribe = onSnapshot(unreadQuery, (snapshot) => {
+          setHasUnreadNotifications(!snapshot.empty); // If there are results, set to true
+        });
+
+        return unsubscribe;
+      };
+
       fetchAvatarUrl();
-    }, [userProfile.avatar]) // Re-run when userProfile.avatar changes
+      const unsubscribeNotifications = checkUnreadNotifications();
+
+      return () => {
+        if (unsubscribeNotifications) unsubscribeNotifications();
+      };
+    }, [userProfile.avatar, userProfile.id])
   );
 
-  // Fetch the avatar URL from Firebase Storage every time the page loads
   useEffect(() => {
     const fetchAvatarUrl = async () => {
       if (userProfile.avatar) {
         try {
           const avatarRef = ref(storage, userProfile.avatar);
           const url = await getDownloadURL(avatarRef);
-          setAvatarUrl(url); // Store the full download URL
+          setAvatarUrl(url);
         } catch (error) {
           console.error('Error fetching avatar URL:', error);
-          setAvatarUrl(null); // Set to null if there's an error fetching
+          setAvatarUrl(null);
         }
       } else {
-        setAvatarUrl(null); // No avatar set, fallback to placeholder
+        setAvatarUrl(null);
       }
     };
 
-    // Trigger the avatar fetch every time the ProfilePage loads
     fetchAvatarUrl();
   }, []);
 
-  // Fetch image URLs for each purchase
   useEffect(() => {
     const fetchPurchaseImages = async () => {
       const purchases = await Promise.all(
@@ -66,13 +84,13 @@ export default function ProfilePage({ navigation }) {
             try {
               const imageRef = ref(storage, purchase.imageUrl);
               const imageUrl = await getDownloadURL(imageRef);
-              return { ...purchase, imageUrl }; // Attach the full image URL to the purchase
+              return { ...purchase, imageUrl };
             } catch (error) {
               console.warn(`Failed to fetch image for purchase ${purchase.id}:`, error);
-              return purchase; // Return the purchase without updating the imageUrl in case of error
+              return purchase;
             }
           }
-          return purchase; // Return purchase if no imageUrl is provided
+          return purchase;
         })
       );
       setPurchasesWithImages(purchases);
@@ -85,13 +103,11 @@ export default function ProfilePage({ navigation }) {
     setSelectedTab(tab);
   };
 
-  // Function to sort purchases by timestamp (from most recent to oldest)
   const sortPurchasesByDate = (purchases) => {
     return purchases.sort((a, b) => {
-      // Add checks for timestamp existence
-      const aTimestamp = a.timestamp?.seconds || 0; // Default to 0 if null
-      const bTimestamp = b.timestamp?.seconds || 0; // Default to 0 if null
-      return bTimestamp - aTimestamp; // Sort descending
+      const aTimestamp = a.timestamp?.seconds || 0;
+      const bTimestamp = b.timestamp?.seconds || 0;
+      return bTimestamp - aTimestamp;
     });
   };
 
@@ -119,8 +135,9 @@ export default function ProfilePage({ navigation }) {
       <View style={styles.header}>
         {/* Notification Bell and Settings Cog */}
         <View style={styles.iconContainer}>
-          <TouchableOpacity onPress={() => navigation.navigate('Notifications')}>
-            <Ionicons name="notifications-outline" size={28} color="#4CB0E6" style={styles.icon} />
+          <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={styles.notificationIcon}>
+            <Ionicons name="notifications-outline" size={28} color="#4CB0E6" />
+            {hasUnreadNotifications && <View style={styles.unreadDot} />}
           </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.navigate('Settings')}>
             <Ionicons name="settings-outline" size={28} color="#4CB0E6" />
@@ -130,14 +147,14 @@ export default function ProfilePage({ navigation }) {
         {/* Avatar and User Info */}
         <Avatar.Image
           size={90}
-          source={avatarUrl ? { uri: avatarUrl } : avatarPlaceholder} // Use avatarUrl if available
+          source={avatarUrl ? { uri: avatarUrl } : avatarPlaceholder}
           style={styles.avatar}
         />
         <Text style={styles.name}>{`${userProfile.firstName} ${userProfile.lastName}`}</Text>
         <Text style={styles.username}>{`${userProfile.username}`}</Text>
       </View>
 
-      {/* Tab Control: Wallet vs Purchases */}
+      {/* Tab Control */}
       <View style={styles.tabContainer}>
         <TouchableOpacity
           onPress={() => handleTabSwitch('wallet')}
@@ -153,6 +170,7 @@ export default function ProfilePage({ navigation }) {
         </TouchableOpacity>
       </View>
 
+      {/* Content Section */}
       {selectedTab === 'wallet' ? (
         <View style={styles.walletSection}>
           {userProfile.paymentMethods.length > 0 ? (
@@ -183,6 +201,7 @@ export default function ProfilePage({ navigation }) {
   );
 }
 
+// Styles
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -213,8 +232,18 @@ const styles = StyleSheet.create({
     right: 10,
     flexDirection: 'row',
   },
-  icon: {
+  notificationIcon: {
+    position: 'relative',
     marginRight: 15,
+  },
+  unreadDot: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: 'red',
   },
   tabContainer: {
     flexDirection: 'row',
