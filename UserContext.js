@@ -18,11 +18,12 @@ export const UserProvider = ({ children }) => {
     users: [],
     purchases: [],
   });
+  const [userLoading, setUserLoading] = useState(true);
   const [items, setItems] = useState([]);
   const [cart, setCart] = useState([]);
 
   useEffect(() => {
-    let unsubscribeProfileListener;
+    let unsubscribeAuth;
     let unsubscribeAddressListener;
     let unsubscribePaymentMethodsListener;
     let unsubscribeListingsListener;
@@ -30,12 +31,13 @@ export const UserProvider = ({ children }) => {
     let unsubscribeUsersListener;
     let unsubscribePurchasesListener;
 
-    const unsubscribeAuth = auth.onAuthStateChanged((user) => {
+    unsubscribeAuth = auth.onAuthStateChanged((user) => {
       if (user) {
+        setUserLoading(true);
         fetchUserProfile(user.uid);
         loadCart(user.uid);
 
-        // Subcollection listeners
+        // Listeners for subcollections
         const addressesRef = collection(db, 'users', user.uid, 'shippingAddresses');
         unsubscribeAddressListener = onSnapshot(addressesRef, (querySnapshot) => {
           const addresses = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
@@ -72,19 +74,18 @@ export const UserProvider = ({ children }) => {
           setUserProfile((prevProfile) => ({ ...prevProfile, users }));
         });
       } else {
-        // Reset state if user logs out
         resetUserState();
       }
     });
 
     return () => {
-      unsubscribeAuth();
-      if (unsubscribeAddressListener) unsubscribeAddressListener();
-      if (unsubscribePaymentMethodsListener) unsubscribePaymentMethodsListener();
-      if (unsubscribePurchasesListener) unsubscribePurchasesListener();
-      if (unsubscribeListingsListener) unsubscribeListingsListener();
-      if (unsubscribeItemsListener) unsubscribeItemsListener();
-      if (unsubscribeUsersListener) unsubscribeUsersListener();
+      unsubscribeAuth && unsubscribeAuth();
+      unsubscribeAddressListener && unsubscribeAddressListener();
+      unsubscribePaymentMethodsListener && unsubscribePaymentMethodsListener();
+      unsubscribePurchasesListener && unsubscribePurchasesListener();
+      unsubscribeListingsListener && unsubscribeListingsListener();
+      unsubscribeItemsListener && unsubscribeItemsListener();
+      unsubscribeUsersListener && unsubscribeUsersListener();
     };
   }, []);
 
@@ -102,6 +103,8 @@ export const UserProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Error fetching user profile:', error);
+    } finally {
+      setUserLoading(false);
     }
   };
 
@@ -121,6 +124,7 @@ export const UserProvider = ({ children }) => {
     });
     setItems([]);
     setCart([]);
+    setUserLoading(false);
   };
 
   const loadCart = async (userId) => {
@@ -234,7 +238,6 @@ export const UserProvider = ({ children }) => {
 
   const sendFriendRequest = async (receiverId) => {
     try {
-      // Add the friend request to the friendRequests collection
       const friendRequestRef = collection(db, 'friendRequests');
       await addDoc(friendRequestRef, {
         senderId: userProfile.id,
@@ -243,7 +246,6 @@ export const UserProvider = ({ children }) => {
         timestamp: serverTimestamp(),
       });
   
-      // Add a notification to the receiver's notifications subcollection
       const notificationsRef = collection(db, 'users', receiverId, 'notifications');
       await addDoc(notificationsRef, {
         type: 'friendRequest',
@@ -263,6 +265,7 @@ export const UserProvider = ({ children }) => {
   return (
     <UserContext.Provider value={{
       userProfile,
+      userLoading,
       items,
       cart,
       setUserProfile,

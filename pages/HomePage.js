@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { View, FlatList, StyleSheet, TouchableOpacity, Alert, Platform, StatusBar } from 'react-native';
+import { View, FlatList, StyleSheet, TouchableOpacity, Alert, Platform, StatusBar, ActivityIndicator } from 'react-native';
 import { Avatar, Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -13,8 +13,9 @@ const avatarPlaceholder = require('../assets/avatar.png');
 
 export default function HomePage() {
   const navigation = useNavigation();
-  const { userProfile } = useContext(UserContext);
+  const { userProfile, userLoading } = useContext(UserContext);
   const [friends, setFriends] = useState([]);
+  const [friendsLoading, setFriendsLoading] = useState(true);
 
   const purchases = [
     {
@@ -49,30 +50,30 @@ export default function HomePage() {
         console.error("No user profile or user ID found.");
         return;
       }
-  
+
       try {
-        // Corrected path to include the user's ID in the collection reference
         const friendsRef = collection(db, 'users', userProfile.id, 'friends');
         const friendsSnapshot = await getDocs(friendsRef);
-  
+
         if (friendsSnapshot.empty) {
           Alert.alert("No friends found", "It seems like you don't have any friends in the list.");
+          setFriends([]);
           return;
         }
-  
+
         const friendsData = await Promise.all(
           friendsSnapshot.docs.map(async (docSnapshot) => {
             const friendData = docSnapshot.data();
             const friendDoc = await getDoc(doc(db, 'users', friendData.friendId));
-  
+
             if (!friendDoc.exists()) {
               console.warn(`Friend document ${friendData.friendId} does not exist in 'users'.`);
               return null;
             }
-  
+
             const friendProfile = friendDoc.data();
             let profilePic = avatarPlaceholder;
-  
+
             if (friendProfile.avatar) {
               try {
                 const avatarRef = ref(storage, friendProfile.avatar);
@@ -81,56 +82,63 @@ export default function HomePage() {
                 console.warn(`Failed to fetch avatar for friend ${friendDoc.id}:`, error);
               }
             }
-  
+
             return { id: friendDoc.id, name: friendProfile.firstName, profilePic };
           })
         );
-  
+
         setFriends(friendsData.filter(friend => friend));
       } catch (error) {
         console.error("Error fetching friends:", error);
         Alert.alert("Error", "Failed to load friends. Please try again later.");
+      } finally {
+        setFriendsLoading(false);
       }
     };
-  
-    fetchFriends();
-  }, [userProfile]);
+
+    if (!userLoading) {
+      fetchFriends();
+    }
+  }, [userProfile, userLoading]);
 
   return (
     <View style={styles.container}>
-      {/* Full-width Top Bar with Search Bubble and Friends */}
+      {/* Top Bar with Search Bubble and Friends */}
       <View style={styles.topBarContainer}>
-      <FlatList
-        horizontal
-        data={friends} 
-        keyExtractor={(item) => item.id.toString()}
-        ListHeaderComponent={() => (
-          <TouchableOpacity 
-            style={styles.searchBubble}
-            onPress={() => navigation.navigate('SearchUsers')}
-          >
-            <Ionicons name="search" size={24} color="#ffffff" />
-          </TouchableOpacity>
-        )}
-        renderItem={({ item }) => {
-          // Ensure profilePic is a valid URI string or use the placeholder
-          const profileImage = typeof item.profilePic === 'string' ? { uri: item.profilePic } : avatarPlaceholder;
-
-          return (
-            <View style={styles.avatarWrapper}>
-              <TouchableOpacity onPress={() => navigation.navigate('UserProfilePage', { userId: item.id })}>
-                <Avatar.Image
-                  size={50}
-                  source={profileImage}
-                  style={styles.avatar}
-                />
+        {friendsLoading ? (
+          <ActivityIndicator size="small" color="#4CB0E6" />
+        ) : (
+          <FlatList
+            horizontal
+            data={friends}
+            keyExtractor={(item) => item.id.toString()}
+            ListHeaderComponent={() => (
+              <TouchableOpacity
+                style={styles.searchBubble}
+                onPress={() => navigation.navigate('SearchUsers')}
+              >
+                <Ionicons name="search" size={24} color="#ffffff" />
               </TouchableOpacity>
-              <Text style={styles.avatarLabel}>{item.name}</Text>
-            </View>
-          );
-        }}
-        showsHorizontalScrollIndicator={false}
-      />
+            )}
+            renderItem={({ item }) => {
+              const profileImage = typeof item.profilePic === 'string' ? { uri: item.profilePic } : avatarPlaceholder;
+
+              return (
+                <View style={styles.avatarWrapper}>
+                  <TouchableOpacity onPress={() => navigation.navigate('UserProfilePage', { userId: item.id })}>
+                    <Avatar.Image
+                      size={50}
+                      source={profileImage}
+                      style={styles.avatar}
+                    />
+                  </TouchableOpacity>
+                  <Text style={styles.avatarLabel}>{item.name}</Text>
+                </View>
+              );
+            }}
+            showsHorizontalScrollIndicator={false}
+          />
+        )}
       </View>
 
       {/* Purchases Feed */}
@@ -143,8 +151,8 @@ export default function HomePage() {
               <View style={styles.purchaseTop}>
                 <Avatar.Image 
                   size={50} 
-                  source={item.profilePic} 
-                  style={styles.purchaseAvatar} // Blue background for avatars in purchase list
+                  source={item.image} 
+                  style={styles.purchaseAvatar}
                 />
                 <View style={styles.purchaseDetails}>
                   <Text style={styles.purchaseFriend}>{item.friend}</Text>
