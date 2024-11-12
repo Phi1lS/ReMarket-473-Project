@@ -38,7 +38,9 @@ export default function UserProfilePage({ route }) {
           }
         }
 
-        await checkFriendStatus();
+        // Set up real-time friend status and pending request listeners
+        setupFriendStatusListener();
+        setupPendingRequestListener();
       } catch (error) {
         console.error('Error initializing user profile:', error);
       } finally {
@@ -46,28 +48,38 @@ export default function UserProfilePage({ route }) {
       }
     };
 
-    const checkFriendStatus = async () => {
-      if (!userProfile.id || !userId) return;
-      try {
-        const friendsRef = collection(db, 'users', userProfile.id, 'friends');
-        const q = query(friendsRef, where("friendId", "==", userId));
-        const querySnapshot = await getDocs(q);
-        setIsFriend(!querySnapshot.empty);
-        
-        const friendRequestsRef = collection(db, 'friendRequests');
-        const pendingRequest = query(friendRequestsRef,
-          where("senderId", "==", userId),
-          where("receiverId", "==", userProfile.id),
-          where("status", "==", "pending")
-        );
-        const pendingRequestSnapshot = await getDocs(pendingRequest);
-        setIsPendingRequest(!pendingRequestSnapshot.empty);
-      } catch (error) {
-        console.error('Error checking friend status:', error);
-      }
+    const setupFriendStatusListener = () => {
+      const friendsRef = collection(db, 'users', userProfile.id, 'friends');
+      const unsubscribe = onSnapshot(friendsRef, (querySnapshot) => {
+        const friendExists = querySnapshot.docs.some((doc) => doc.data().friendId === userId);
+        setIsFriend(friendExists);
+      });
+      return unsubscribe;
     };
 
+    const setupPendingRequestListener = () => {
+      const friendRequestsRef = collection(db, 'friendRequests');
+      const pendingRequestQuery = query(
+        friendRequestsRef,
+        where("senderId", "==", userId),
+        where("receiverId", "==", userProfile.id),
+        where("status", "==", "pending")
+      );
+      const unsubscribe = onSnapshot(pendingRequestQuery, (querySnapshot) => {
+        setIsPendingRequest(!querySnapshot.empty);
+      });
+      return unsubscribe;
+    };
+
+    const unsubscribeFriendsListener = setupFriendStatusListener();
+    const unsubscribePendingRequestListener = setupPendingRequestListener();
+
     initializePage();
+
+    return () => {
+      unsubscribeFriendsListener();
+      unsubscribePendingRequestListener();
+    };
   }, [userId, userProfile.id]);
 
   const acceptFriendRequest = async () => {
@@ -177,87 +189,69 @@ export default function UserProfilePage({ route }) {
   const handleTabSwitch = (tab) => setSelectedTab(tab);
 
   useEffect(() => {
-    // Fetch purchases only when Activity tab is selected
+    // Fetch purchases in real-time when Activity tab is selected
     if (selectedTab === 'activity') {
-      const fetchUserPurchases = () => {
-        const purchasesRef = collection(db, 'users', userId, 'purchases');
-        const unsubscribe = onSnapshot(purchasesRef, (querySnapshot) => {
-          const purchasesList = querySnapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }));
-          fetchPurchaseImages(purchasesList);
-        });
-        return unsubscribe;
-      };
-
-      const fetchPurchaseImages = async (purchases) => {
-        const purchasesWithImagesList = await Promise.all(
-          purchases.map(async (purchase) => {
-            if (purchase.imageUrl) {
-              try {
-                const imageRef = ref(storage, purchase.imageUrl);
-                const fullImageUrl = await getDownloadURL(imageRef);
-                return { ...purchase, imageUrl: fullImageUrl };
-              } catch (error) {
-                console.warn(`Failed to fetch image for purchase ${purchase.id}:`, error);
-                return purchase;
-              }
-            }
-            return purchase;
-          })
-        );
-        setPurchasesWithImages(purchasesWithImagesList);
-      };
-
-      const unsubscribePurchases = fetchUserPurchases();
+      const purchasesRef = collection(db, 'users', userId, 'purchases');
+      const unsubscribePurchases = onSnapshot(purchasesRef, (querySnapshot) => {
+        const purchasesList = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        fetchPurchaseImages(purchasesList);
+      });
       return () => unsubscribePurchases();
     }
   }, [selectedTab, userId]);
 
-  useEffect(() => {
-    // Fetch friends list only when Friends tab is selected
-    if (selectedTab === 'friends') {
-      const fetchFriendsList = async () => {
-        if (!userId) return;
-      
-        try {
-          const friendsRef = collection(db, 'users', userId, 'friends');
-          const querySnapshot = await getDocs(friendsRef);
-      
-          const friendsData = await Promise.all(
-            querySnapshot.docs.map(async (docSnapshot) => {
-              const friendData = docSnapshot.data();
-              const friendDoc = await getDoc(doc(db, 'users', friendData.friendId));
-              if (friendDoc.exists()) {
-                const friendProfile = friendDoc.data();
-                
-                // Fetch avatar URL if it exists
-                if (friendProfile.avatar) {
-                  try {
-                    const avatarRef = ref(storage, friendProfile.avatar);
-                    friendProfile.avatar = await getDownloadURL(avatarRef);
-                  } catch (error) {
-                    console.warn(`Failed to fetch avatar for friend ${friendDoc.id}:`, error);
-                  }
-                }
-                return { id: friendDoc.id, ...friendProfile };
-              }
-              return null;
-            })
-          );
-      
-          const sortedFriends = friendsData
-            .filter(friend => friend) // Remove null values
-            .sort((a, b) => a.firstName.localeCompare(b.firstName));
-      
-          setFriendsList(sortedFriends);
-        } catch (error) {
-          console.error('Error fetching friends list:', error);
+  const fetchPurchaseImages = async (purchases) => {
+    const purchasesWithImagesList = await Promise.all(
+      purchases.map(async (purchase) => {
+        if (purchase.imageUrl) {
+          try {
+            const imageRef = ref(storage, purchase.imageUrl);
+            const fullImageUrl = await getDownloadURL(imageRef);
+            return { ...purchase, imageUrl: fullImageUrl };
+          } catch (error) {
+            console.warn(`Failed to fetch image for purchase ${purchase.id}:`, error);
+            return purchase;
+          }
         }
-      };
+        return purchase;
+      })
+    );
+    setPurchasesWithImages(purchasesWithImagesList);
+  };
 
-      fetchFriendsList();
+  useEffect(() => {
+    // Fetch friends list in real-time when Friends tab is selected
+    if (selectedTab === 'friends') {
+      const friendsRef = collection(db, 'users', userId, 'friends');
+      const unsubscribeFriends = onSnapshot(friendsRef, async (querySnapshot) => {
+        const friendsData = await Promise.all(
+          querySnapshot.docs.map(async (docSnapshot) => {
+            const friendData = docSnapshot.data();
+            const friendDoc = await getDoc(doc(db, 'users', friendData.friendId));
+            if (friendDoc.exists()) {
+              const friendProfile = friendDoc.data();
+              if (friendProfile.avatar) {
+                try {
+                  const avatarRef = ref(storage, friendProfile.avatar);
+                  friendProfile.avatar = await getDownloadURL(avatarRef);
+                } catch (error) {
+                  console.warn(`Failed to fetch avatar for friend ${friendDoc.id}:`, error);
+                }
+              }
+              return { id: friendDoc.id, ...friendProfile };
+            }
+            return null;
+          })
+        );
+        const sortedFriends = friendsData
+          .filter(friend => friend)
+          .sort((a, b) => a.firstName.localeCompare(b.firstName));
+        setFriendsList(sortedFriends);
+      });
+      return () => unsubscribeFriends();
     }
   }, [selectedTab, userId]);
 
