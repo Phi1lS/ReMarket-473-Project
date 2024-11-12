@@ -14,11 +14,11 @@ export default function UserProfilePage({ route, navigation }) {
   const [user, setUser] = useState(null);
   const [userAvatarUrl, setUserAvatarUrl] = useState(null);
   const [selectedTab, setSelectedTab] = useState('activity');
-  const [purchases, setPurchases] = useState([]);
   const [purchasesWithImages, setPurchasesWithImages] = useState([]);
+  const [friendsList, setFriendsList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isPending, setIsPending] = useState(false);
-  const [isFriend, setIsFriend] = useState(false); // New state to track friendship status
+  const [isFriend, setIsFriend] = useState(false);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -42,77 +42,107 @@ export default function UserProfilePage({ route, navigation }) {
         setLoading(false);
       }
     };
-  
+
     const checkFriendStatus = async () => {
       if (!userProfile.id || !userId) return;
-    
       try {
-        // Reference the friends subcollection for the current user
         const friendsRef = collection(db, 'users', userProfile.id, 'friends');
         const q = query(friendsRef, where("friendId", "==", userId));
-    
-        // Execute the query
         const querySnapshot = await getDocs(q);
-    
-        if (!querySnapshot.empty) {
-          console.log("Users are already friends.");
-          setIsFriend(true); // Set isFriend to true if the friendId is found
-        } else {
-          console.log("Users are not friends.");
-          setIsFriend(false); // Set isFriend to false if no matching friendId is found
-        }
+        setIsFriend(!querySnapshot.empty);
       } catch (error) {
         console.error('Error checking friend status:', error);
       }
     };
-  
-    const fetchUserPurchases = () => {
-      const purchasesRef = collection(db, 'users', userId, 'purchases');
-      const unsubscribe = onSnapshot(purchasesRef, (querySnapshot) => {
-        const purchasesList = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setPurchases(purchasesList);
-      });
-      return unsubscribe;
-    };
-  
+
     fetchUserData();
-    checkFriendStatus(); // Check if the current user is friends with this profile
-    const unsubscribePurchases = fetchUserPurchases();
-  
-    return () => unsubscribePurchases();
+    checkFriendStatus();
   }, [userId, userProfile.id]);
 
   useEffect(() => {
-    const fetchPurchaseImages = async () => {
-      const purchasesWithImagesList = await Promise.all(
-        purchases.map(async (purchase) => {
-          if (purchase.imageUrl) {
-            try {
-              const imageRef = ref(storage, purchase.imageUrl);
-              const fullImageUrl = await getDownloadURL(imageRef);
-              return { ...purchase, imageUrl: fullImageUrl };
-            } catch (error) {
-              console.warn(`Failed to fetch image for purchase ${purchase.id}:`, error);
-              return purchase;
+    // Fetch purchases only when Activity tab is selected
+    if (selectedTab === 'activity') {
+      const fetchUserPurchases = () => {
+        const purchasesRef = collection(db, 'users', userId, 'purchases');
+        const unsubscribe = onSnapshot(purchasesRef, (querySnapshot) => {
+          const purchasesList = querySnapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }));
+          fetchPurchaseImages(purchasesList);
+        });
+        return unsubscribe;
+      };
+
+      const fetchPurchaseImages = async (purchases) => {
+        const purchasesWithImagesList = await Promise.all(
+          purchases.map(async (purchase) => {
+            if (purchase.imageUrl) {
+              try {
+                const imageRef = ref(storage, purchase.imageUrl);
+                const fullImageUrl = await getDownloadURL(imageRef);
+                return { ...purchase, imageUrl: fullImageUrl };
+              } catch (error) {
+                console.warn(`Failed to fetch image for purchase ${purchase.id}:`, error);
+                return purchase;
+              }
             }
-          }
-          return purchase;
-        })
-      );
-      setPurchasesWithImages(purchasesWithImagesList);
-    };
+            return purchase;
+          })
+        );
+        setPurchasesWithImages(purchasesWithImagesList);
+      };
 
-    if (purchases.length > 0) {
-      fetchPurchaseImages();
+      const unsubscribePurchases = fetchUserPurchases();
+      return () => unsubscribePurchases();
     }
-  }, [purchases]);
+  }, [selectedTab, userId]);
 
-  const sortPurchasesByDate = (purchases) => {
-    return purchases.sort((a, b) => b.timestamp.seconds - a.timestamp.seconds);
-  };
+  useEffect(() => {
+    // Fetch friends list only when Friends tab is selected
+    if (selectedTab === 'friends') {
+      const fetchFriendsList = async () => {
+        if (!userId) return;
+      
+        try {
+          const friendsRef = collection(db, 'users', userId, 'friends');
+          const querySnapshot = await getDocs(friendsRef);
+      
+          const friendsData = await Promise.all(
+            querySnapshot.docs.map(async (docSnapshot) => {
+              const friendData = docSnapshot.data();
+              const friendDoc = await getDoc(doc(db, 'users', friendData.friendId));
+              if (friendDoc.exists()) {
+                const friendProfile = friendDoc.data();
+                
+                // Fetch avatar URL if it exists
+                if (friendProfile.avatar) {
+                  try {
+                    const avatarRef = ref(storage, friendProfile.avatar);
+                    friendProfile.avatar = await getDownloadURL(avatarRef);
+                  } catch (error) {
+                    console.warn(`Failed to fetch avatar for friend ${friendDoc.id}:`, error);
+                  }
+                }
+                return { id: friendDoc.id, ...friendProfile };
+              }
+              return null;
+            })
+          );
+      
+          const sortedFriends = friendsData
+            .filter(friend => friend) // Remove null values
+            .sort((a, b) => a.firstName.localeCompare(b.firstName));
+      
+          setFriendsList(sortedFriends);
+        } catch (error) {
+          console.error('Error fetching friends list:', error);
+        }
+      };
+
+      fetchFriendsList();
+    }
+  }, [selectedTab, userId]);
 
   const handleTabSwitch = (tab) => setSelectedTab(tab);
 
@@ -137,6 +167,21 @@ export default function UserProfilePage({ route, navigation }) {
     </View>
   );
 
+  const renderFriendItem = (friend) => (
+    <TouchableOpacity 
+      key={friend.id} 
+      style={styles.friendItem} 
+      onPress={() => navigation.push('UserProfilePage', { userId: friend.id })}
+    >
+      <Avatar.Image 
+        size={50} 
+        style={styles.friendPhoto} 
+        source={friend.avatar ? { uri: friend.avatar } : fallbackAvatar} 
+      />
+      <Text style={styles.friendName}>{friend.firstName} {friend.lastName}</Text>
+    </TouchableOpacity>
+  );
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -155,6 +200,7 @@ export default function UserProfilePage({ route, navigation }) {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ flexGrow: 1 }}>
+      {/* Header Section */}
       <View style={styles.header}>
         <Avatar.Image
           size={90}
@@ -162,28 +208,27 @@ export default function UserProfilePage({ route, navigation }) {
           style={styles.avatar}
         />
         <Text style={styles.name}>
-          {user.firstName ? user.firstName : 'First Name'}{' '}
-          {user.lastName ? user.lastName : 'Last Name'}
+          {user.firstName || 'First Name'} {user.lastName || 'Last Name'}
         </Text>
         <Text style={styles.username}>
-          {user.username ? user.username : 'No username available'}
+          {user.username || 'No username available'}
         </Text>
-        <TouchableOpacity 
-          style={styles.addFriendButton} 
-          onPress={handleAddFriend} 
-          disabled={isPending || isFriend}
-        >
-           <Ionicons 
-            name={isFriend ? "checkmark-circle" : "person-add-outline"} 
-            size={24} 
-            color="#fff" 
-          />
-          <Text style={styles.addFriendText}>
-            {isFriend ? 'Friends' : isPending ? 'Pending Request' : 'Add Friend'}
-          </Text>
-        </TouchableOpacity>
+        {/* Show "Add Friend" button only if viewing another user’s profile */}
+        {userProfile.id !== userId && (
+          <TouchableOpacity 
+            style={styles.addFriendButton} 
+            onPress={handleAddFriend} 
+            disabled={isPending || isFriend}
+          >
+            <Ionicons name={isFriend ? "checkmark-circle" : "person-add-outline"} size={24} color="#fff" />
+            <Text style={styles.addFriendText}>
+              {isFriend ? 'Friends' : isPending ? 'Pending Request' : 'Add Friend'}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
-
+    
+      {/* Tabs Section */}
       <View style={styles.tabContainer}>
         <TouchableOpacity
           onPress={() => handleTabSwitch('activity')}
@@ -202,18 +247,23 @@ export default function UserProfilePage({ route, navigation }) {
           </Text>
         </TouchableOpacity>
       </View>
-
+    
+      {/* Content Section */}
       {selectedTab === 'activity' ? (
         <View style={styles.activitySection}>
           {purchasesWithImages.length > 0 ? (
-            sortPurchasesByDate(purchasesWithImages).map((item) => renderPurchaseItem(item))
+            purchasesWithImages.map((item) => renderPurchaseItem(item))
           ) : (
             <Text style={styles.noTransactions}>No purchases to show.</Text>
           )}
         </View>
       ) : (
         <View style={styles.friendsSection}>
-          <Text style={styles.noTransactions}>No friends yet.</Text>
+          {friendsList.length > 0 ? (
+            friendsList.map((friend) => renderFriendItem(friend))
+          ) : (
+            <Text style={styles.noTransactions}>No friends to show.</Text>
+          )}
         </View>
       )}
     </ScrollView>
@@ -339,5 +389,42 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#999',
     textAlign: 'center',
+  },
+  friendsSection: {
+    backgroundColor: '#fff',
+    borderRadius: 15,
+    padding: 20,
+    marginHorizontal: 20,
+  },
+  friendItem: {
+    backgroundColor: '#fff',
+    padding: 10,
+    marginBottom: 10,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 15, // Adds consistent space between avatar and text
+  },
+  friendAvatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 10,
+    marginRight: 15,
+  },
+  friendNameContainer: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  friendName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  friendDetailsText: {
+    fontSize: 14,
+    color: '#555',
+  },
+  friendPhoto: {
+    backgroundColor: '#4CB0E6',
   },
 });
