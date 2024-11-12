@@ -131,9 +131,7 @@ export default function ProfilePage({ navigation }) {
 
   return (
     <ScrollView style={styles.container}>
-      {/* Profile Header */}
       <View style={styles.header}>
-        {/* Notification Bell and Settings Cog */}
         <View style={styles.iconContainer}>
           <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={styles.notificationIcon}>
             <Ionicons name="notifications-outline" size={28} color="#4CB0E6" />
@@ -144,7 +142,6 @@ export default function ProfilePage({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* Avatar and User Info */}
         <Avatar.Image
           size={90}
           source={avatarUrl ? { uri: avatarUrl } : avatarPlaceholder}
@@ -152,6 +149,11 @@ export default function ProfilePage({ navigation }) {
         />
         <Text style={styles.name}>{`${userProfile.firstName} ${userProfile.lastName}`}</Text>
         <Text style={styles.username}>{`${userProfile.username}`}</Text>
+
+        {/* Friends List Link */}
+        <TouchableOpacity onPress={() => navigation.navigate('FriendsList')}>
+          <Text style={styles.friendsListLink}>Friends List</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Tab Control */}
@@ -191,7 +193,7 @@ export default function ProfilePage({ navigation }) {
       ) : (
         <View style={styles.purchasesSection}>
           {purchasesWithImages.length > 0 ? (
-            sortPurchasesByDate(purchasesWithImages).map((item) => renderPurchaseItem(item))
+            purchasesWithImages.map((item) => renderPurchaseItem(item))
           ) : (
             <Text style={styles.noTransactions}>No purchases to show.</Text>
           )}
@@ -336,5 +338,10 @@ const styles = StyleSheet.create({
     color: '#999',
     textAlign: 'center',
     marginTop: 20,
+  },
+  friendsListLink: {
+    fontSize: 16,
+    color: '#4CB0E6',
+    marginTop: 8,
   },
 });

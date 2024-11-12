@@ -28,6 +28,7 @@ import ViewItemsPage from './pages/ShopPages/ViewItemsPage';
 import SettingsPage from './pages/ProfilePages/SettingsPage';
 import NotificationsPage from './pages/ProfilePages/NotificationsPage';
 import UserProfilePage from './pages/UserProfilePage';
+import FriendsList from './pages/ProfilePages/FriendsList';
 import AccountPage from './pages/SettingsPages/AccountPage';
 import PaymentMethodsPage from './pages/SettingsPages/PaymentMethodsPage';
 import ShippingAddressesPage from './pages/SettingsPages/ShippingAddressesPage';
@@ -286,6 +287,16 @@ function ProfileStack() {
         options={{ title: 'Notifications' }} 
       />
       <Stack.Screen name="PaymentMethodsPage" component={PaymentMethodsPage} options={{ title: '' }} />
+      <Stack.Screen 
+        name="FriendsList" 
+        component={FriendsList} 
+        options={{ title: 'Friends List' }} 
+      />
+      <Stack.Screen
+        name="UserProfilePage"
+        component={UserProfilePage} 
+        options={{ title: 'User Profile' }} 
+      />
     </Stack.Navigator>
   );
 }
