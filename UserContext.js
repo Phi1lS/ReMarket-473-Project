@@ -146,7 +146,6 @@ export const UserProvider = ({ children }) => {
   
         const purchaseRef = collection(db, 'users', userProfile.id, 'purchases');
         await addDoc(purchaseRef, {
-          type: 'purchase',
           itemId: purchaseItem.itemId,
           itemName: purchaseItem.itemName,
           price: purchaseItem.price,
@@ -160,12 +159,14 @@ export const UserProvider = ({ children }) => {
         const sellerId = marketplaceData.sellerId;
         const sellerNotificationsRef = collection(db, 'users', sellerId, 'notifications');
         await addDoc(sellerNotificationsRef, {
+          type: 'purchase',
           buyerName: `${userProfile.firstName} ${userProfile.lastName}`,
           itemId: purchaseItem.itemId,
           itemName: purchaseItem.itemName,
           quantity: purchaseItem.quantity,
           timestamp: serverTimestamp(),
           message: purchaseItem.message || '',
+          status: 'unread',
         });
   
         console.log("Purchase added with notification to the seller:", purchaseItem);
