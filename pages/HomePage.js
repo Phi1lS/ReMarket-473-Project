@@ -3,7 +3,7 @@ import { View, FlatList, StyleSheet, TouchableOpacity, Alert, Platform, StatusBa
 import { Avatar, Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { collection, getDocs, getDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, getDoc, doc, onSnapshot } from 'firebase/firestore';
 import { db, storage } from '../firebaseConfig';
 import { getDownloadURL, ref } from 'firebase/storage';
 import { UserContext } from '../UserContext';
@@ -45,24 +45,13 @@ export default function HomePage() {
   ];
 
   useEffect(() => {
-    const fetchFriends = async () => {
-      if (!userProfile || !userProfile.id) {
-        console.error("No user profile or user ID found.");
-        return;
-      }
-
-      try {
-        const friendsRef = collection(db, 'users', userProfile.id, 'friends');
-        const friendsSnapshot = await getDocs(friendsRef);
-
-        if (friendsSnapshot.empty) {
-          Alert.alert("No friends found", "It seems like you don't have any friends in the list.");
-          setFriends([]);
-          return;
-        }
-
+    let unsubscribe;
+    if (!userLoading && userProfile?.id) {
+      const friendsRef = collection(db, 'users', userProfile.id, 'friends');
+      
+      unsubscribe = onSnapshot(friendsRef, async (snapshot) => {
         const friendsData = await Promise.all(
-          friendsSnapshot.docs.map(async (docSnapshot) => {
+          snapshot.docs.map(async (docSnapshot) => {
             const friendData = docSnapshot.data();
             const friendDoc = await getDoc(doc(db, 'users', friendData.friendId));
 
@@ -87,18 +76,16 @@ export default function HomePage() {
           })
         );
 
-        setFriends(friendsData.filter(friend => friend));
-      } catch (error) {
-        console.error("Error fetching friends:", error);
-        Alert.alert("Error", "Failed to load friends. Please try again later.");
-      } finally {
-        setFriendsLoading(false);
-      }
-    };
+        const sortedFriends = friendsData
+          .filter(friend => friend)  // Remove any null entries
+          .sort((a, b) => a.name.localeCompare(b.name));  // Sort alphabetically by name
 
-    if (!userLoading) {
-      fetchFriends();
+        setFriends(sortedFriends);
+        setFriendsLoading(false);
+      });
     }
+
+    return () => unsubscribe && unsubscribe();
   }, [userProfile, userLoading]);
 
   return (

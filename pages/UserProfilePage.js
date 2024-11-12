@@ -177,6 +177,45 @@ export default function UserProfilePage({ route }) {
   const handleTabSwitch = (tab) => setSelectedTab(tab);
 
   useEffect(() => {
+    // Fetch purchases only when Activity tab is selected
+    if (selectedTab === 'activity') {
+      const fetchUserPurchases = () => {
+        const purchasesRef = collection(db, 'users', userId, 'purchases');
+        const unsubscribe = onSnapshot(purchasesRef, (querySnapshot) => {
+          const purchasesList = querySnapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }));
+          fetchPurchaseImages(purchasesList);
+        });
+        return unsubscribe;
+      };
+
+      const fetchPurchaseImages = async (purchases) => {
+        const purchasesWithImagesList = await Promise.all(
+          purchases.map(async (purchase) => {
+            if (purchase.imageUrl) {
+              try {
+                const imageRef = ref(storage, purchase.imageUrl);
+                const fullImageUrl = await getDownloadURL(imageRef);
+                return { ...purchase, imageUrl: fullImageUrl };
+              } catch (error) {
+                console.warn(`Failed to fetch image for purchase ${purchase.id}:`, error);
+                return purchase;
+              }
+            }
+            return purchase;
+          })
+        );
+        setPurchasesWithImages(purchasesWithImagesList);
+      };
+
+      const unsubscribePurchases = fetchUserPurchases();
+      return () => unsubscribePurchases();
+    }
+  }, [selectedTab, userId]);
+
+  useEffect(() => {
     // Fetch friends list only when Friends tab is selected
     if (selectedTab === 'friends') {
       const fetchFriendsList = async () => {
@@ -222,6 +261,43 @@ export default function UserProfilePage({ route }) {
     }
   }, [selectedTab, userId]);
 
+  const handleRemoveFriend = async () => {
+    try {
+      // Remove friend from current user's friends subcollection
+      const currentUserFriendRef = collection(db, 'users', userProfile.id, 'friends');
+      const currentUserFriendQuery = query(currentUserFriendRef, where("friendId", "==", userId));
+      const currentUserFriendSnapshot = await getDocs(currentUserFriendQuery);
+      currentUserFriendSnapshot.forEach(async (doc) => {
+        await deleteDoc(doc.ref);
+      });
+  
+      // Remove current user from the other user's friends subcollection
+      const otherUserFriendRef = collection(db, 'users', userId, 'friends');
+      const otherUserFriendQuery = query(otherUserFriendRef, where("friendId", "==", userProfile.id));
+      const otherUserFriendSnapshot = await getDocs(otherUserFriendQuery);
+      otherUserFriendSnapshot.forEach(async (doc) => {
+        await deleteDoc(doc.ref);
+      });
+  
+      // Delete any friend request between the users in the global friendRequests collection
+      const friendRequestsRef = collection(db, 'friendRequests');
+      const friendRequestQuery = query(
+        friendRequestsRef,
+        where("receiverId", "in", [userProfile.id, userId]),
+        where("senderId", "in", [userProfile.id, userId])
+      );
+      const friendRequestSnapshot = await getDocs(friendRequestQuery);
+      friendRequestSnapshot.forEach(async (doc) => {
+        await deleteDoc(doc.ref);
+      });
+  
+      setIsFriend(false);
+      Alert.alert("Friend Removed", `You are no longer friends with ${user.firstName}.`);
+    } catch (error) {
+      console.error("Error removing friend:", error);
+    }
+  };
+
   const renderFriendRequestButtons = () => {
     if (isPendingRequest) {
       return (
@@ -235,11 +311,25 @@ export default function UserProfilePage({ route }) {
         </>
       );
     }
+
     return (
-      <TouchableOpacity 
-        style={styles.addFriendButton} 
-        onPress={handleAddFriend} 
-        disabled={isPending || isFriend}
+      <TouchableOpacity
+        style={styles.addFriendButton}
+        onPress={() => {
+          if (isFriend) {
+            Alert.alert(
+              "Remove Friend",
+              `Are you sure you want to remove ${user.firstName} as a friend?`,
+              [
+                { text: "Cancel", style: "cancel" },
+                { text: "Yes", onPress: handleRemoveFriend }
+              ]
+            );
+          } else {
+            handleAddFriend();
+          }
+        }}
+        disabled={isPending}
       >
         <Ionicons name={isFriend ? "checkmark-circle" : "person-add-outline"} size={24} color="#fff" />
         <Text style={styles.addFriendText}>
@@ -248,6 +338,7 @@ export default function UserProfilePage({ route }) {
       </TouchableOpacity>
     );
   };
+
 
   const renderPurchaseItem = (item) => (
     <View key={item.id} style={styles.purchaseItemContainer}>
