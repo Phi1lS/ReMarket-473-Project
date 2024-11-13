@@ -18,39 +18,37 @@ export default function HomePage() {
   const [purchases, setPurchases] = useState([]);
   const [friendsLoading, setFriendsLoading] = useState(true);
 
+  const loadProfilePicture = async (avatarPath) => {
+    if (!avatarPath) return avatarPlaceholder;
+    try {
+      const avatarRef = ref(storage, avatarPath);
+      return await getDownloadURL(avatarRef);
+    } catch {
+      return avatarPlaceholder;
+    }
+  };
+
   useEffect(() => {
-    let unsubscribe;
+    let unsubscribeFriends;
+    let unsubscribeUserPurchases;
+
     if (!userLoading && userProfile?.id) {
       const friendsRef = collection(db, 'users', userProfile.id, 'friends');
-      
-      unsubscribe = onSnapshot(friendsRef, async (snapshot) => {
+
+      unsubscribeFriends = onSnapshot(friendsRef, async (snapshot) => {
         const friendsData = await Promise.all(
           snapshot.docs.map(async (docSnapshot) => {
             const friendData = docSnapshot.data();
             const friendDoc = await getDoc(doc(db, 'users', friendData.friendId));
-
-            if (!friendDoc.exists()) {
-              console.warn(`Friend document ${friendData.friendId} does not exist in 'users'.`);
-              return null;
-            }
+            
+            if (!friendDoc.exists()) return null;
 
             const friendProfile = friendDoc.data();
-            let profilePic = avatarPlaceholder;
-
-            if (friendProfile.avatar) {
-              try {
-                const avatarRef = ref(storage, friendProfile.avatar);
-                profilePic = await getDownloadURL(avatarRef);
-              } catch (error) {
-                console.warn(`Failed to fetch avatar for friend ${friendDoc.id}:`, error);
-              }
-            }
+            const profilePic = await loadProfilePicture(friendProfile.avatar);
 
             const purchasesRef = collection(db, 'users', friendData.friendId, 'purchases');
-            
-            // Set up real-time listener for each friend's purchases
             onSnapshot(purchasesRef, (snapshot) => {
-              const updatedPurchases = snapshot.docs.map((purchaseDoc) => {
+              const friendPurchases = snapshot.docs.map((purchaseDoc) => {
                 const purchaseData = purchaseDoc.data();
                 return {
                   id: purchaseDoc.id,
@@ -66,10 +64,9 @@ export default function HomePage() {
                 };
               });
 
-              // Update purchases state with new data
               setPurchases((prevPurchases) => {
                 const otherPurchases = prevPurchases.filter((p) => p.friendId !== friendData.friendId);
-                return [...otherPurchases, ...updatedPurchases].sort((a, b) => b.timestamp?.seconds - a.timestamp?.seconds);
+                return [...otherPurchases, ...friendPurchases].sort((a, b) => b.timestamp?.seconds - a.timestamp?.seconds);
               });
             });
 
@@ -77,12 +74,41 @@ export default function HomePage() {
           })
         );
 
-        const validFriends = friendsData.filter(friend => friend);
-        setFriends(validFriends);
+        // Filter out null values and set friends
+        setFriends(friendsData.filter(friend => friend));
         setFriendsLoading(false);
       });
+
+      // Add user's own purchases to the feed
+      unsubscribeUserPurchases = onSnapshot(collection(db, 'users', userProfile.id, 'purchases'), async (snapshot) => {
+        const profilePic = await loadProfilePicture(userProfile.avatar);
+        const userPurchases = snapshot.docs.map((doc) => {
+          const purchaseData = doc.data();
+          return {
+            id: doc.id,
+            friendId: userProfile.id,
+            friendName: `${userProfile.firstName} ${userProfile.lastName}`,
+            friendProfilePic: profilePic,
+            itemName: purchaseData.itemName,
+            message: purchaseData.message,
+            timestamp: purchaseData.timestamp,
+            imageUrl: purchaseData.imageUrl || require('../assets/item.png'),
+            likeCount: purchaseData.likeCount || 0,
+            isLiked: purchaseData.likedBy?.includes(userProfile.id) || false,
+          };
+        });
+
+        setPurchases((prevPurchases) => {
+          const otherPurchases = prevPurchases.filter((p) => p.friendId !== userProfile.id);
+          return [...otherPurchases, ...userPurchases].sort((a, b) => b.timestamp?.seconds - a.timestamp?.seconds);
+        });
+      });
     }
-    return () => unsubscribe && unsubscribe();
+
+    return () => {
+      unsubscribeFriends && unsubscribeFriends();
+      unsubscribeUserPurchases && unsubscribeUserPurchases();
+    };
   }, [userProfile, userLoading]);
 
   const handleLike = async (item) => {
@@ -111,7 +137,6 @@ export default function HomePage() {
 
   return (
     <View style={styles.container}>
-      {/* Top Bar with Search Bubble and Friends */}
       <View style={styles.topBarContainer}>
         {friendsLoading ? (
           <ActivityIndicator size="small" color="#4CB0E6" />
@@ -128,23 +153,19 @@ export default function HomePage() {
                 <Ionicons name="search" size={24} color="#ffffff" />
               </TouchableOpacity>
             )}
-            renderItem={({ item }) => {
-              const profileImage = typeof item.profilePic === 'string' ? { uri: item.profilePic } : avatarPlaceholder;
-              return (
-                <View style={styles.avatarWrapper}>
-                  <TouchableOpacity onPress={() => navigation.navigate('UserProfilePage', { userId: item.id })}>
-                    <Avatar.Image size={50} source={profileImage} style={styles.avatar} />
-                  </TouchableOpacity>
-                  <Text style={styles.avatarLabel}>{item.name}</Text>
-                </View>
-              );
-            }}
+            renderItem={({ item }) => (
+              <View style={styles.avatarWrapper}>
+                <TouchableOpacity onPress={() => navigation.navigate('UserProfilePage', { userId: item.id })}>
+                  <Avatar.Image size={50} source={typeof item.profilePic === 'string' ? { uri: item.profilePic } : avatarPlaceholder} style={styles.avatar} />
+                </TouchableOpacity>
+                <Text style={styles.avatarLabel}>{item.name}</Text>
+              </View>
+            )}
             showsHorizontalScrollIndicator={false}
           />
         )}
       </View>
 
-      {/* Purchases Feed */}
       <FlatList
         data={purchases}
         keyExtractor={(item) => item.id.toString()}
@@ -154,7 +175,7 @@ export default function HomePage() {
               <View style={styles.purchaseTop}>
                 <Avatar.Image 
                   size={50} 
-                  source={item.friendProfilePic ? { uri: item.friendProfilePic } : avatarPlaceholder} 
+                  source={typeof item.friendProfilePic === 'string' ? { uri: item.friendProfilePic } : avatarPlaceholder} 
                   style={styles.purchaseAvatar}
                 />
                 <View style={styles.purchaseDetails}>
@@ -168,11 +189,10 @@ export default function HomePage() {
               </View>
 
               <Image
-                source={item.imageUrl ? { uri: item.imageUrl } : require('../assets/item.png')}
+                source={item.imageUrl && typeof item.imageUrl === 'string' ? { uri: item.imageUrl } : require('../assets/item.png')}
                 style={styles.itemImageSquare}
               />
 
-              {/* Action Icons */}
               <View style={styles.purchaseActions}>
                 <TouchableOpacity onPress={() => handleLike(item)}>
                   <Ionicons
