@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { View, FlatList, StyleSheet, TouchableOpacity, Alert, Platform, StatusBar, ActivityIndicator } from 'react-native';
+import { View, FlatList, StyleSheet, TouchableOpacity, Image, Alert, Platform, StatusBar, ActivityIndicator } from 'react-native';
 import { Avatar, Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -28,15 +28,15 @@ export default function HomePage() {
           snapshot.docs.map(async (docSnapshot) => {
             const friendData = docSnapshot.data();
             const friendDoc = await getDoc(doc(db, 'users', friendData.friendId));
-
+  
             if (!friendDoc.exists()) {
               console.warn(`Friend document ${friendData.friendId} does not exist in 'users'.`);
               return null;
             }
-
+  
             const friendProfile = friendDoc.data();
             let profilePic = avatarPlaceholder;
-
+  
             if (friendProfile.avatar) {
               try {
                 const avatarRef = ref(storage, friendProfile.avatar);
@@ -45,8 +45,8 @@ export default function HomePage() {
                 console.warn(`Failed to fetch avatar for friend ${friendDoc.id}:`, error);
               }
             }
-
-            // Fetch friend purchases
+  
+            // Fetch friend purchases and include profile picture
             const purchasesRef = collection(db, 'users', friendData.friendId, 'purchases');
             const purchasesSnapshot = await getDocs(purchasesRef);
             const friendPurchases = purchasesSnapshot.docs.map(purchaseDoc => {
@@ -54,30 +54,31 @@ export default function HomePage() {
               return {
                 id: purchaseDoc.id,
                 friendId: friendData.friendId,
-                friendName: `${friendProfile.firstName} ${friendProfile.lastName}`, // Full name here
+                friendName: `${friendProfile.firstName} ${friendProfile.lastName}`, // Full name
+                friendProfilePic: profilePic, // Add profile pic
                 itemName: purchaseData.itemName,
                 message: purchaseData.message,
                 timestamp: purchaseData.timestamp,
                 imageUrl: purchaseData.imageUrl || require('../assets/item.png'),
               };
             });
-
-            return { id: friendDoc.id, name: `${friendProfile.firstName} ${friendProfile.lastName}`, profilePic, purchases: friendPurchases };
+  
+            return { id: friendDoc.id, name: friendProfile.firstName, profilePic, purchases: friendPurchases };
           })
         );
-
+  
         const validFriends = friendsData.filter(friend => friend);
         setFriends(validFriends);
-
+  
         // Combine and sort all purchases by timestamp
         const allPurchases = validFriends.flatMap(friend => friend.purchases);
         allPurchases.sort((a, b) => b.timestamp?.seconds - a.timestamp?.seconds);
         setPurchases(allPurchases);
-
+  
         setFriendsLoading(false);
       });
     }
-
+  
     return () => unsubscribe && unsubscribe();
   }, [userProfile, userLoading]);
 
@@ -147,9 +148,10 @@ export default function HomePage() {
           <TouchableOpacity onPress={() => navigation.navigate('ItemDetail', { item })}>
             <View style={styles.purchaseRow}>
               <View style={styles.purchaseTop}>
+                {/* Friend's Profile Picture as Circular Avatar */}
                 <Avatar.Image 
                   size={50} 
-                  source={item.imageUrl ? { uri: item.imageUrl } : require('../assets/item.png')} 
+                  source={item.friendProfilePic ? { uri: item.friendProfilePic } : avatarPlaceholder} 
                   style={styles.purchaseAvatar}
                 />
                 <View style={styles.purchaseDetails}>
@@ -162,12 +164,19 @@ export default function HomePage() {
                 </View>
               </View>
 
+              {/* Square Item Picture */}
+              <Image
+                source={item.imageUrl ? { uri: item.imageUrl } : require('../assets/item.png')}
+                style={styles.itemImageSquare}
+              />
+
+              {/* Action Icons */}
               <View style={styles.purchaseActions}>
                 <TouchableOpacity>
                   <Ionicons name="heart-outline" size={28} color="#333" />
                 </TouchableOpacity>
-                <TouchableOpacity 
-                  style={styles.commentIconWrapper} 
+                <TouchableOpacity
+                  style={styles.commentIconWrapper}
                   onPress={() => navigation.navigate('ItemDetail', { item })}
                 >
                   <Ionicons name="chatbubble-outline" size={28} color="#333" />
@@ -274,5 +283,12 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#e0e0e0',
     marginVertical: 5,
+  },
+  itemImageSquare: {
+    width: 100, // Adjust width as needed
+    height: 100, // Adjust height as needed
+    marginVertical: 10, // Space between the message and icons
+    alignSelf: 'center', // Center the image
+    borderRadius: 10, // Optional: add rounded corners
   },
 });
