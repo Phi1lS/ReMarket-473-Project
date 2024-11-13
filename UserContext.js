@@ -37,7 +37,6 @@ export const UserProvider = ({ children }) => {
         fetchUserProfile(user.uid);
         loadCart(user.uid);
 
-        // Listeners for subcollections
         const addressesRef = collection(db, 'users', user.uid, 'shippingAddresses');
         unsubscribeAddressListener = onSnapshot(addressesRef, (querySnapshot) => {
           const addresses = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
@@ -140,14 +139,42 @@ export const UserProvider = ({ children }) => {
     }
   };
 
+  const toggleLike = async (friendId, purchaseId, isLiked) => {
+    try {
+      const purchaseRef = doc(db, 'users', friendId, 'purchases', purchaseId);
+      const purchaseDoc = await getDoc(purchaseRef);
+
+      if (!purchaseDoc.exists()) {
+        console.error(`Purchase document not found for ID: ${purchaseId}`);
+        return;
+      }
+
+      const purchaseData = purchaseDoc.data();
+      const likedBy = Array.isArray(purchaseData.likedBy) ? purchaseData.likedBy : [];
+      const likeCount = purchaseData.likeCount || 0;
+
+      const newLikeCount = isLiked ? likeCount - 1 : likeCount + 1;
+      const updatedLikedBy = isLiked
+        ? likedBy.filter((id) => id !== userProfile.id)
+        : [...likedBy, userProfile.id];
+
+      await updateDoc(purchaseRef, {
+        likeCount: newLikeCount,
+        likedBy: updatedLikedBy,
+      });
+    } catch (error) {
+      console.error('Error toggling like:', error);
+    }
+  };
+
   const addPurchase = async (purchaseItem) => {
     try {
       const marketplaceRef = doc(db, 'marketplace', purchaseItem.itemId);
       const marketplaceDoc = await getDoc(marketplaceRef);
-  
+
       if (marketplaceDoc.exists()) {
         const marketplaceData = marketplaceDoc.data();
-  
+
         const purchaseRef = collection(db, 'users', userProfile.id, 'purchases');
         await addDoc(purchaseRef, {
           itemId: purchaseItem.itemId,
@@ -159,7 +186,7 @@ export const UserProvider = ({ children }) => {
           timestamp: serverTimestamp(),
           userName: `${userProfile.firstName} ${userProfile.lastName}`,
         });
-  
+
         const sellerId = marketplaceData.sellerId;
         const sellerNotificationsRef = collection(db, 'users', sellerId, 'notifications');
         await addDoc(sellerNotificationsRef, {
@@ -172,7 +199,7 @@ export const UserProvider = ({ children }) => {
           message: purchaseItem.message || '',
           status: 'unread',
         });
-  
+
         console.log("Purchase added with notification to the seller:", purchaseItem);
       } else {
         console.error("Marketplace item not found:", purchaseItem.itemId);
@@ -245,7 +272,7 @@ export const UserProvider = ({ children }) => {
         status: 'pending',
         timestamp: serverTimestamp(),
       });
-  
+
       const notificationsRef = collection(db, 'users', receiverId, 'notifications');
       await addDoc(notificationsRef, {
         type: 'friendRequest',
@@ -255,7 +282,7 @@ export const UserProvider = ({ children }) => {
         timestamp: serverTimestamp(),
         status: 'unread',
       });
-  
+
       console.log(`Friend request sent to user ${receiverId} with notification.`);
     } catch (error) {
       console.error('Error sending friend request:', error);
@@ -275,6 +302,7 @@ export const UserProvider = ({ children }) => {
       addPaymentMethod,
       removePaymentMethod,
       addPurchase,
+      toggleLike,
       sendFriendRequest,
     }}>
       {children}

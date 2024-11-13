@@ -13,7 +13,7 @@ const avatarPlaceholder = require('../assets/avatar.png');
 
 export default function HomePage() {
   const navigation = useNavigation();
-  const { userProfile, userLoading } = useContext(UserContext);
+  const { userProfile, userLoading, toggleLike } = useContext(UserContext);
   const [friends, setFriends] = useState([]);
   const [purchases, setPurchases] = useState([]);
   const [friendsLoading, setFriendsLoading] = useState(true);
@@ -28,15 +28,15 @@ export default function HomePage() {
           snapshot.docs.map(async (docSnapshot) => {
             const friendData = docSnapshot.data();
             const friendDoc = await getDoc(doc(db, 'users', friendData.friendId));
-  
+
             if (!friendDoc.exists()) {
               console.warn(`Friend document ${friendData.friendId} does not exist in 'users'.`);
               return null;
             }
-  
+
             const friendProfile = friendDoc.data();
             let profilePic = avatarPlaceholder;
-  
+
             if (friendProfile.avatar) {
               try {
                 const avatarRef = ref(storage, friendProfile.avatar);
@@ -45,53 +45,63 @@ export default function HomePage() {
                 console.warn(`Failed to fetch avatar for friend ${friendDoc.id}:`, error);
               }
             }
-  
-            // Fetch friend purchases and include profile picture
+
             const purchasesRef = collection(db, 'users', friendData.friendId, 'purchases');
-            const purchasesSnapshot = await getDocs(purchasesRef);
-            const friendPurchases = purchasesSnapshot.docs.map(purchaseDoc => {
-              const purchaseData = purchaseDoc.data();
-              return {
-                id: purchaseDoc.id,
-                friendId: friendData.friendId,
-                friendName: `${friendProfile.firstName} ${friendProfile.lastName}`, // Full name
-                friendProfilePic: profilePic, // Add profile pic
-                itemName: purchaseData.itemName,
-                message: purchaseData.message,
-                timestamp: purchaseData.timestamp,
-                imageUrl: purchaseData.imageUrl || require('../assets/item.png'),
-              };
+            
+            // Set up real-time listener for each friend's purchases
+            onSnapshot(purchasesRef, (snapshot) => {
+              const updatedPurchases = snapshot.docs.map((purchaseDoc) => {
+                const purchaseData = purchaseDoc.data();
+                return {
+                  id: purchaseDoc.id,
+                  friendId: friendData.friendId,
+                  friendName: `${friendProfile.firstName} ${friendProfile.lastName}`,
+                  friendProfilePic: profilePic,
+                  itemName: purchaseData.itemName,
+                  message: purchaseData.message,
+                  timestamp: purchaseData.timestamp,
+                  imageUrl: purchaseData.imageUrl || require('../assets/item.png'),
+                  likeCount: purchaseData.likeCount || 0,
+                  isLiked: purchaseData.likedBy?.includes(userProfile.id) || false,
+                };
+              });
+
+              // Update purchases state with new data
+              setPurchases((prevPurchases) => {
+                const otherPurchases = prevPurchases.filter((p) => p.friendId !== friendData.friendId);
+                return [...otherPurchases, ...updatedPurchases].sort((a, b) => b.timestamp?.seconds - a.timestamp?.seconds);
+              });
             });
-  
-            return { id: friendDoc.id, name: friendProfile.firstName, profilePic, purchases: friendPurchases };
+
+            return { id: friendDoc.id, name: friendProfile.firstName, profilePic };
           })
         );
-  
+
         const validFriends = friendsData.filter(friend => friend);
         setFriends(validFriends);
-  
-        // Combine and sort all purchases by timestamp
-        const allPurchases = validFriends.flatMap(friend => friend.purchases);
-        allPurchases.sort((a, b) => b.timestamp?.seconds - a.timestamp?.seconds);
-        setPurchases(allPurchases);
-  
         setFriendsLoading(false);
       });
     }
-  
     return () => unsubscribe && unsubscribe();
   }, [userProfile, userLoading]);
 
+  const handleLike = async (item) => {
+    try {
+      await toggleLike(item.friendId, item.id, item.isLiked);
+    } catch (error) {
+      console.error("Error toggling like:", error);
+    }
+  };
+
   const formatTime = (timestamp) => {
     if (!timestamp) return '';
-  
     const date = new Date(timestamp.seconds * 1000);
     const now = new Date();
     const secondsDifference = Math.floor((now - date) / 1000);
     const minutes = Math.floor(secondsDifference / 60);
     const hours = Math.floor(minutes / 60);
     const days = Math.floor(hours / 24);
-  
+
     if (minutes < 1) return "Just now";
     if (minutes < 60) return `${minutes} minutes ago`;
     if (hours < 24) return `${hours} hours ago`;
@@ -120,18 +130,12 @@ export default function HomePage() {
             )}
             renderItem={({ item }) => {
               const profileImage = typeof item.profilePic === 'string' ? { uri: item.profilePic } : avatarPlaceholder;
-
               return (
                 <View style={styles.avatarWrapper}>
                   <TouchableOpacity onPress={() => navigation.navigate('UserProfilePage', { userId: item.id })}>
-                    <Avatar.Image
-                      size={50}
-                      source={profileImage}
-                      style={styles.avatar}
-                    />
+                    <Avatar.Image size={50} source={profileImage} style={styles.avatar} />
                   </TouchableOpacity>
-                  {/* Display only the first name */}
-                  <Text style={styles.avatarLabel}>{item.name.split(' ')[0]}</Text>
+                  <Text style={styles.avatarLabel}>{item.name}</Text>
                 </View>
               );
             }}
@@ -148,7 +152,6 @@ export default function HomePage() {
           <TouchableOpacity onPress={() => navigation.navigate('ItemDetail', { item })}>
             <View style={styles.purchaseRow}>
               <View style={styles.purchaseTop}>
-                {/* Friend's Profile Picture as Circular Avatar */}
                 <Avatar.Image 
                   size={50} 
                   source={item.friendProfilePic ? { uri: item.friendProfilePic } : avatarPlaceholder} 
@@ -164,7 +167,6 @@ export default function HomePage() {
                 </View>
               </View>
 
-              {/* Square Item Picture */}
               <Image
                 source={item.imageUrl ? { uri: item.imageUrl } : require('../assets/item.png')}
                 style={styles.itemImageSquare}
@@ -172,8 +174,13 @@ export default function HomePage() {
 
               {/* Action Icons */}
               <View style={styles.purchaseActions}>
-                <TouchableOpacity>
-                  <Ionicons name="heart-outline" size={28} color="#333" />
+                <TouchableOpacity onPress={() => handleLike(item)}>
+                  <Ionicons
+                    name={item.isLiked ? "heart" : "heart-outline"}
+                    size={28}
+                    color={item.isLiked ? "red" : "#333"}
+                  />
+                  <Text style={styles.likeCount}>{item.likeCount}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.commentIconWrapper}
@@ -291,5 +298,12 @@ const styles = StyleSheet.create({
     alignSelf: 'left',
     borderRadius: 10, // add rounded corners
     marginLeft: 60, // Line up the image with message text
+  },
+  likeCount: {
+    marginTop: 4,
+    marginRight: 2,
+    fontSize: 16,  // Slightly larger font size for the count
+    color: "#333",
+    textAlign: 'center',
   },
 });
