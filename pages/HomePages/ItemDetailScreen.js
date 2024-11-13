@@ -1,22 +1,65 @@
-import React, { useContext, useState, useEffect } from 'react';
-import { View, TextInput, Image, StyleSheet, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
-import { Ionicons } from 'react-native-vector-icons';
+import React, { useState, useEffect, useContext } from 'react';
+import { View, ScrollView, KeyboardAvoidingView, TextInput, TouchableOpacity, Image, Text, StyleSheet, Platform } from 'react-native';
 import { Avatar } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { db } from '../../firebaseConfig';
+import { doc, getDoc, onSnapshot, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { UserContext } from '../../UserContext';
+
+const avatarPlaceholder = require('../../assets/avatar.png');
 
 export default function ItemDetailScreen({ route }) {
   const { item } = route.params;
   const navigation = useNavigation();
+  const { userProfile } = useContext(UserContext);
+  
+  const [likeCount, setLikeCount] = useState(item.likeCount || 0);
+  const [isLiked, setIsLiked] = useState(item.isLiked || false);
   const [isCommenting, setIsCommenting] = useState(false);
   const [commentText, setCommentText] = useState('');
 
   // Sample comments data
   const comments = [
-    { id: 1, name: 'User1', comment: 'This looks awesome! Where did you get it?', time: '2 hours ago', profilePic: require('../../assets/avatar.png') },
-    { id: 2, name: 'User2', comment: 'I bought something similar last week!', time: '4 hours ago', profilePic: require('../../assets/avatar.png') },
-    { id: 3, name: 'User3', comment: 'Can’t wait to get mine!', time: '1 day ago', profilePic: require('../../assets/avatar.png') },
+    { id: 1, name: 'User1', comment: 'This looks awesome! Where did you get it?', time: '2 hours ago', profilePic: avatarPlaceholder },
+    { id: 2, name: 'User2', comment: 'I bought something similar last week!', time: '4 hours ago', profilePic: avatarPlaceholder },
+    { id: 3, name: 'User3', comment: 'Can’t wait to get mine!', time: '1 day ago', profilePic: avatarPlaceholder },
   ];
+
+  useEffect(() => {
+    // Real-time listener for the like count and liked status on the current item
+    const itemRef = doc(db, 'users', item.friendId, 'purchases', item.id);
+    const unsubscribe = onSnapshot(itemRef, (docSnapshot) => {
+      if (docSnapshot.exists()) {
+        const data = docSnapshot.data();
+        setLikeCount(data.likeCount || 0);
+        setIsLiked(data.likedBy?.includes(userProfile.id) || false);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [item.id, item.friendId, userProfile.id]);
+
+  const handleLikeToggle = async () => {
+    const itemRef = doc(db, 'users', item.friendId, 'purchases', item.id);
+    try {
+      if (isLiked) {
+        // Remove user from likedBy array and decrease like count
+        await updateDoc(itemRef, {
+          likedBy: arrayRemove(userProfile.id),
+          likeCount: likeCount - 1,
+        });
+      } else {
+        // Add user to likedBy array and increase like count
+        await updateDoc(itemRef, {
+          likedBy: arrayUnion(userProfile.id),
+          likeCount: likeCount + 1,
+        });
+      }
+    } catch (error) {
+      console.error("Error updating like status:", error);
+    }
+  };
 
   const handleSubmitComment = () => {
     if (commentText.trim() !== '') {
@@ -37,7 +80,7 @@ export default function ItemDetailScreen({ route }) {
         {/* Item and Seller Details */}
         <View style={styles.purchaseTop}>
           <TouchableOpacity onPress={() => navigation.navigate('UserProfilePage', { userId: item.friendId })}>
-            <Avatar.Image size={50} source={item.friendProfilePic ? { uri: item.friendProfilePic } : require('../../assets/avatar.png')} style={styles.purchaseAvatar} />
+            <Avatar.Image size={50} source={item.friendProfilePic ? { uri: item.friendProfilePic } : avatarPlaceholder} style={styles.purchaseAvatar} />
           </TouchableOpacity>
           <View style={styles.purchaseDetails}>
             <TouchableOpacity onPress={() => navigation.navigate('UserProfilePage', { userId: item.friendId })}>
@@ -56,8 +99,9 @@ export default function ItemDetailScreen({ route }) {
 
         {/* Like (Heart) Icon */}
         <View style={styles.purchaseActions}>
-          <TouchableOpacity>
-            <Ionicons name="heart-outline" size={28} color="#333" />
+          <TouchableOpacity onPress={handleLikeToggle} style={styles.likeButton}>
+            <Ionicons name={isLiked ? "heart" : "heart-outline"} size={36} color={isLiked ? "red" : "#333"} />
+            <Text style={styles.likeCount}>{likeCount}</Text>
           </TouchableOpacity>
         </View>
 
@@ -223,5 +267,12 @@ const styles = StyleSheet.create({
   },
   commentBoxExpanded: {
     paddingBottom: Platform.OS === 'ios' ? 20 : 10,
+  },
+  likeCount: {
+    marginTop: 4,
+    marginRight: 2,
+    fontSize: 16,  // Slightly larger font size for the count
+    color: "#333",
+    textAlign: 'center',
   },
 });
