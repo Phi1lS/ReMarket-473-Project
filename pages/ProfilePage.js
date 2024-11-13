@@ -40,9 +40,8 @@ export default function ProfilePage({ navigation }) {
         const notificationsRef = collection(db, 'users', userProfile.id, 'notifications');
         const unreadQuery = query(notificationsRef, where('status', '==', 'unread'));
         
-        // Listen for changes in unread notifications
         const unsubscribe = onSnapshot(unreadQuery, (snapshot) => {
-          setHasUnreadNotifications(!snapshot.empty); // If there are results, set to true
+          setHasUnreadNotifications(!snapshot.empty);
         });
 
         return unsubscribe;
@@ -93,7 +92,9 @@ export default function ProfilePage({ navigation }) {
           return purchase;
         })
       );
-      setPurchasesWithImages(purchases);
+
+      // Sort purchases by date, from most recent to oldest, and update state
+      setPurchasesWithImages(sortPurchasesByDate(purchases));
     };
 
     fetchPurchaseImages();
