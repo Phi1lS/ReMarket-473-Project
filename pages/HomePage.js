@@ -15,34 +15,8 @@ export default function HomePage() {
   const navigation = useNavigation();
   const { userProfile, userLoading } = useContext(UserContext);
   const [friends, setFriends] = useState([]);
+  const [purchases, setPurchases] = useState([]);
   const [friendsLoading, setFriendsLoading] = useState(true);
-
-  const purchases = [
-    {
-      id: 1,
-      friend: 'Friend 1',
-      item: 'Item A',
-      time: '10 minutes ago',
-      description: 'Super excited for this gadget!',
-      image: require('../assets/item.png'),
-    },
-    {
-      id: 2,
-      friend: 'Friend 2',
-      item: 'Item B',
-      time: '1 hour ago',
-      description: 'These sneakers will be super comfortable!',
-      image: require('../assets/item.png'),
-    },
-    {
-      id: 3,
-      friend: 'Friend 3',
-      item: 'Item C',
-      time: 'Yesterday',
-      description: 'The chocolates will be delicious!',
-      image: require('../assets/item.png'),
-    },
-  ];
 
   useEffect(() => {
     let unsubscribe;
@@ -72,21 +46,57 @@ export default function HomePage() {
               }
             }
 
-            return { id: friendDoc.id, name: friendProfile.firstName, profilePic };
+            // Fetch friend purchases
+            const purchasesRef = collection(db, 'users', friendData.friendId, 'purchases');
+            const purchasesSnapshot = await getDocs(purchasesRef);
+            const friendPurchases = purchasesSnapshot.docs.map(purchaseDoc => {
+              const purchaseData = purchaseDoc.data();
+              return {
+                id: purchaseDoc.id,
+                friendId: friendData.friendId,
+                friendName: `${friendProfile.firstName} ${friendProfile.lastName}`, // Full name here
+                itemName: purchaseData.itemName,
+                message: purchaseData.message,
+                timestamp: purchaseData.timestamp,
+                imageUrl: purchaseData.imageUrl || require('../assets/item.png'),
+              };
+            });
+
+            return { id: friendDoc.id, name: `${friendProfile.firstName} ${friendProfile.lastName}`, profilePic, purchases: friendPurchases };
           })
         );
 
-        const sortedFriends = friendsData
-          .filter(friend => friend)  // Remove any null entries
-          .sort((a, b) => a.name.localeCompare(b.name));  // Sort alphabetically by name
+        const validFriends = friendsData.filter(friend => friend);
+        setFriends(validFriends);
 
-        setFriends(sortedFriends);
+        // Combine and sort all purchases by timestamp
+        const allPurchases = validFriends.flatMap(friend => friend.purchases);
+        allPurchases.sort((a, b) => b.timestamp?.seconds - a.timestamp?.seconds);
+        setPurchases(allPurchases);
+
         setFriendsLoading(false);
       });
     }
 
     return () => unsubscribe && unsubscribe();
   }, [userProfile, userLoading]);
+
+  const formatTime = (timestamp) => {
+    if (!timestamp) return '';
+  
+    const date = new Date(timestamp.seconds * 1000);
+    const now = new Date();
+    const secondsDifference = Math.floor((now - date) / 1000);
+    const minutes = Math.floor(secondsDifference / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+  
+    if (minutes < 1) return "Just now";
+    if (minutes < 60) return `${minutes} minutes ago`;
+    if (hours < 24) return `${hours} hours ago`;
+    if (days === 1) return "Yesterday";
+    return `${days} days ago`;
+  };
 
   return (
     <View style={styles.container}>
@@ -119,7 +129,8 @@ export default function HomePage() {
                       style={styles.avatar}
                     />
                   </TouchableOpacity>
-                  <Text style={styles.avatarLabel}>{item.name}</Text>
+                  {/* Display only the first name */}
+                  <Text style={styles.avatarLabel}>{item.name.split(' ')[0]}</Text>
                 </View>
               );
             }}
@@ -138,15 +149,15 @@ export default function HomePage() {
               <View style={styles.purchaseTop}>
                 <Avatar.Image 
                   size={50} 
-                  source={item.image} 
+                  source={item.imageUrl ? { uri: item.imageUrl } : require('../assets/item.png')} 
                   style={styles.purchaseAvatar}
                 />
                 <View style={styles.purchaseDetails}>
-                  <Text style={styles.purchaseFriend}>{item.friend}</Text>
-                  <Text style={styles.purchaseText}>purchased {item.item}</Text>
-                  <Text style={styles.purchaseTime}>{item.time}</Text>
+                  <Text style={styles.purchaseFriend}>{item.friendName}</Text>
+                  <Text style={styles.purchaseText}>purchased {item.itemName}</Text>
+                  <Text style={styles.purchaseTime}>{formatTime(item.timestamp)}</Text>
                   <View style={styles.descriptionSpacing}>
-                    <Text style={styles.purchaseDescription}>{item.description}</Text>
+                    <Text style={styles.purchaseDescription}>{item.message}</Text>
                   </View>
                 </View>
               </View>
