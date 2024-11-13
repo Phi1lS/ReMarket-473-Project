@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { View, TextInput, Image, StyleSheet, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
-import { Ionicons } from 'react-native-vector-icons'; // Correct import for icons
+import { Ionicons } from 'react-native-vector-icons';
 import { Avatar } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
+import { UserContext } from '../../UserContext';
 
 export default function ItemDetailScreen({ route }) {
   const { item } = route.params;
@@ -12,27 +13,9 @@ export default function ItemDetailScreen({ route }) {
 
   // Sample comments data
   const comments = [
-    {
-      id: 1,
-      name: 'User1',
-      comment: 'This looks awesome! Where did you get it?',
-      time: '2 hours ago',
-      profilePic: require('../../assets/avatar.png'),
-    },
-    {
-      id: 2,
-      name: 'User2',
-      comment: 'I bought something similar last week!',
-      time: '4 hours ago',
-      profilePic: require('../../assets/avatar.png'),
-    },
-    {
-      id: 3,
-      name: 'User3',
-      comment: 'Can’t wait to get mine!',
-      time: '1 day ago',
-      profilePic: require('../../assets/avatar.png'),
-    },
+    { id: 1, name: 'User1', comment: 'This looks awesome! Where did you get it?', time: '2 hours ago', profilePic: require('../../assets/avatar.png') },
+    { id: 2, name: 'User2', comment: 'I bought something similar last week!', time: '4 hours ago', profilePic: require('../../assets/avatar.png') },
+    { id: 3, name: 'User3', comment: 'Can’t wait to get mine!', time: '1 day ago', profilePic: require('../../assets/avatar.png') },
   ];
 
   const handleSubmitComment = () => {
@@ -69,9 +52,7 @@ export default function ItemDetailScreen({ route }) {
         </View>
 
         {/* Item Image */}
-        <TouchableOpacity onPress={() => navigation.navigate('ItemPage', { item })}>
-          <Image source={item.imageUrl ? { uri: item.imageUrl } : require('../../assets/item.png')} style={styles.itemImage} />
-        </TouchableOpacity>
+        <Image source={item.imageUrl ? { uri: item.imageUrl } : require('../../assets/item.png')} style={styles.itemImage} />
 
         {/* Like (Heart) Icon */}
         <View style={styles.purchaseActions}>
