@@ -288,7 +288,8 @@ const styles = StyleSheet.create({
     width: 100, // Adjust width as needed
     height: 100, // Adjust height as needed
     marginVertical: 10, // Space between the message and icons
-    alignSelf: 'center', // Center the image
-    borderRadius: 10, // Optional: add rounded corners
+    alignSelf: 'left',
+    borderRadius: 10, // add rounded corners
+    marginLeft: 60, // Line up the image with message text
   },
 });
