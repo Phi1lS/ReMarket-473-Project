@@ -7,9 +7,10 @@ import { useNavigation } from '@react-navigation/native';
 export default function ItemDetailScreen({ route }) {
   const { item } = route.params;
   const navigation = useNavigation();
-  const [isCommenting, setIsCommenting] = useState(false); // Track if user is typing a comment
-  const [commentText, setCommentText] = useState(''); // Track the comment text
+  const [isCommenting, setIsCommenting] = useState(false);
+  const [commentText, setCommentText] = useState('');
 
+  // Sample comments data
   const comments = [
     {
       id: 1,
@@ -34,13 +35,12 @@ export default function ItemDetailScreen({ route }) {
     },
   ];
 
-  // Handle comment submission
   const handleSubmitComment = () => {
     if (commentText.trim() !== '') {
-      console.log('Comment submitted:', commentText); // Handle the actual comment submission logic
-      setCommentText(''); // Clear the input field
-      setIsCommenting(false); // Hide the comment input box
-      Keyboard.dismiss(); // Dismiss the keyboard after submission
+      console.log('Comment submitted:', commentText);
+      setCommentText('');
+      setIsCommenting(false);
+      Keyboard.dismiss();
     }
   };
 
@@ -51,47 +51,46 @@ export default function ItemDetailScreen({ route }) {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
-        {/* Top Section with Profile Picture, Name, and Description */}
+        {/* Item and Seller Details */}
         <View style={styles.purchaseTop}>
-          {/* Navigate to UserProfilePage when user presses the avatar or name */}
-          <TouchableOpacity onPress={() => navigation.navigate('UserProfilePage', { user: item })}>
-            <Avatar.Image size={50} source={item.profilePic} style={styles.purchaseAvatar} />
+          <TouchableOpacity onPress={() => navigation.navigate('UserProfilePage', { userId: item.friendId })}>
+            <Avatar.Image size={50} source={item.friendProfilePic ? { uri: item.friendProfilePic } : require('../../assets/avatar.png')} style={styles.purchaseAvatar} />
           </TouchableOpacity>
           <View style={styles.purchaseDetails}>
-            <TouchableOpacity onPress={() => navigation.navigate('UserProfilePage', { user: item })}>
-              <Text style={styles.purchaseFriend}>{item.friend}</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('UserProfilePage', { userId: item.friendId })}>
+              <Text style={styles.purchaseFriend}>{item.friendName}</Text>
             </TouchableOpacity>
-            <Text style={styles.purchaseText}>purchased {item.item}</Text>
+            <Text style={styles.purchaseText}>purchased {item.itemName}</Text>
             <Text style={styles.purchaseTime}>{item.time}</Text>
             <View style={styles.descriptionSpacing}>
-              <Text style={styles.purchaseDescription}>{item.description}</Text>
+              <Text style={styles.purchaseDescription}>{item.message}</Text>
             </View>
           </View>
         </View>
 
-        {/* Clickable Item Image */}
+        {/* Item Image */}
         <TouchableOpacity onPress={() => navigation.navigate('ItemPage', { item })}>
-          <Image source={item.image} style={styles.itemImage} />
+          <Image source={item.imageUrl ? { uri: item.imageUrl } : require('../../assets/item.png')} style={styles.itemImage} />
         </TouchableOpacity>
 
-        {/* Heart Icon */}
+        {/* Like (Heart) Icon */}
         <View style={styles.purchaseActions}>
           <TouchableOpacity>
             <Ionicons name="heart-outline" size={28} color="#333" />
           </TouchableOpacity>
         </View>
 
-        {/* Divider between purchase details and comments */}
+        {/* Divider */}
         <View style={styles.divider} />
 
         {/* Comments Section */}
         {comments.map((comment) => (
           <View key={comment.id} style={styles.commentRow}>
-            <TouchableOpacity onPress={() => navigation.navigate('UserProfilePage', { user: comment })}>
+            <TouchableOpacity onPress={() => navigation.navigate('UserProfilePage', { userId: comment.id })}>
               <Avatar.Image size={40} source={comment.profilePic} style={styles.commentAvatar} />
             </TouchableOpacity>
             <View style={styles.commentDetails}>
-              <TouchableOpacity onPress={() => navigation.navigate('UserProfilePage', { user: comment })}>
+              <TouchableOpacity onPress={() => navigation.navigate('UserProfilePage', { userId: comment.id })}>
                 <Text style={styles.commentName}>{comment.name}</Text>
               </TouchableOpacity>
               <Text style={styles.commentText}>{comment.comment}</Text>
@@ -101,7 +100,7 @@ export default function ItemDetailScreen({ route }) {
         ))}
       </ScrollView>
 
-      {/* Comment Box appears when user is typing */}
+      {/* Comment Box */}
       <View style={[styles.commentBoxContainer, isCommenting && styles.commentBoxExpanded]}>
         <TextInput
           style={[styles.commentInput, isCommenting && styles.commentInputExpanded]}
@@ -110,7 +109,7 @@ export default function ItemDetailScreen({ route }) {
           value={commentText}
           onChangeText={setCommentText}
           onSubmitEditing={handleSubmitComment}
-          onFocus={() => setIsCommenting(true)} // Show expanded input when typing
+          onFocus={() => setIsCommenting(true)}
         />
         {isCommenting && (
           <TouchableOpacity style={styles.sendButton} onPress={handleSubmitComment}>
