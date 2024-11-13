@@ -1,47 +1,129 @@
-import React, { useState } from 'react';
-import { View, TextInput, Image, StyleSheet, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
-import { Ionicons } from 'react-native-vector-icons'; // Correct import for icons
+import React, { useState, useEffect, useContext } from 'react';
+import { View, ScrollView, KeyboardAvoidingView, TextInput, TouchableOpacity, Image, Text, StyleSheet, Platform, Keyboard } from 'react-native';
 import { Avatar } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { db, storage } from '../../firebaseConfig';
+import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove, collection, addDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { ref, getDownloadURL } from 'firebase/storage';
+import { UserContext } from '../../UserContext';
+
+const avatarPlaceholder = require('../../assets/avatar.png');
+
 
 export default function ItemDetailScreen({ route }) {
   const { item } = route.params;
   const navigation = useNavigation();
-  const [isCommenting, setIsCommenting] = useState(false); // Track if user is typing a comment
-  const [commentText, setCommentText] = useState(''); // Track the comment text
+  const { userProfile } = useContext(UserContext);
 
-  const comments = [
-    {
-      id: 1,
-      name: 'User1',
-      comment: 'This looks awesome! Where did you get it?',
-      time: '2 hours ago',
-      profilePic: require('../../assets/avatar.png'),
-    },
-    {
-      id: 2,
-      name: 'User2',
-      comment: 'I bought something similar last week!',
-      time: '4 hours ago',
-      profilePic: require('../../assets/avatar.png'),
-    },
-    {
-      id: 3,
-      name: 'User3',
-      comment: 'Can’t wait to get mine!',
-      time: '1 day ago',
-      profilePic: require('../../assets/avatar.png'),
-    },
-  ];
+  const [likeCount, setLikeCount] = useState(item.likeCount || 0);
+  const [isLiked, setIsLiked] = useState(item.isLiked || false);
+  const [isCommenting, setIsCommenting] = useState(false);
+  const [commentText, setCommentText] = useState('');
+  const [comments, setComments] = useState([]);
 
-  // Handle comment submission
-  const handleSubmitComment = () => {
-    if (commentText.trim() !== '') {
-      console.log('Comment submitted:', commentText); // Handle the actual comment submission logic
-      setCommentText(''); // Clear the input field
-      setIsCommenting(false); // Hide the comment input box
-      Keyboard.dismiss(); // Dismiss the keyboard after submission
+  useEffect(() => {
+    const itemRef = doc(db, 'users', item.friendId, 'purchases', item.id);
+    const unsubscribeItem = onSnapshot(itemRef, (docSnapshot) => {
+      if (docSnapshot.exists()) {
+        const data = docSnapshot.data();
+        setLikeCount(data.likeCount || 0);
+        setIsLiked(data.likedBy?.includes(userProfile.id) || false);
+      }
+    });
+
+    const commentsRef = collection(db, 'users', item.friendId, 'purchases', item.id, 'comments');
+    const unsubscribeComments = onSnapshot(commentsRef, async (querySnapshot) => {
+      const loadedComments = await Promise.all(
+        querySnapshot.docs.map(async (commentDoc) => {
+          const data = commentDoc.data();
+          let profilePic = avatarPlaceholder;
+
+          if (data.userId) {
+            const userRef = doc(db, 'users', data.userId);
+            const userDoc = await getDoc(userRef);
+            if (userDoc.exists() && userDoc.data().avatar) {
+              try {
+                const avatarRef = ref(storage, userDoc.data().avatar);
+                profilePic = await getDownloadURL(avatarRef);
+              } catch (error) {
+                console.warn(`Failed to load profile picture for user ${data.userId}:`, error);
+              }
+            }
+          }
+
+          return {
+            id: commentDoc.id,
+            name: data.name,
+            comment: data.comment,
+            userId: data.userId,
+            profilePic,
+            time: formatTime(data.timestamp?.toDate()),
+            timestamp: data.timestamp?.toDate() || new Date(),
+          };
+        })
+      );
+
+      setComments(loadedComments.sort((a, b) => b.timestamp - a.timestamp));
+    });
+
+    return () => {
+      unsubscribeItem();
+      unsubscribeComments();
+    };
+  }, [item.id, item.friendId, userProfile.id]);
+
+  const handleLikeToggle = async () => {
+    const itemRef = doc(db, 'users', item.friendId, 'purchases', item.id);
+    try {
+      if (isLiked) {
+        await updateDoc(itemRef, {
+          likedBy: arrayRemove(userProfile.id),
+          likeCount: likeCount - 1,
+        });
+      } else {
+        await updateDoc(itemRef, {
+          likedBy: arrayUnion(userProfile.id),
+          likeCount: likeCount + 1,
+        });
+      }
+      setIsLiked(!isLiked);
+    } catch (error) {
+      console.error("Error updating like status:", error);
     }
+  };
+
+  const handleSubmitComment = async () => {
+    if (commentText.trim() !== '') {
+      try {
+        await addDoc(collection(db, 'users', item.friendId, 'purchases', item.id, 'comments'), {
+          name: `${userProfile.firstName} ${userProfile.lastName}`,
+          comment: commentText,
+          userId: userProfile.id,
+          timestamp: serverTimestamp(),
+        });
+        setCommentText('');
+        setIsCommenting(false);
+        Keyboard.dismiss();
+      } catch (error) {
+        console.error("Error adding comment:", error);
+      }
+    }
+  };
+
+  const formatTime = (timestamp) => {
+    if (!timestamp) return '';
+    const now = new Date();
+    const diffInSeconds = Math.floor((now - timestamp) / 1000);
+    const minutes = Math.floor(diffInSeconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+
+    if (minutes < 1) return "Just now";
+    if (minutes < 60) return `${minutes} minutes ago`;
+    if (hours < 24) return `${hours} hours ago`;
+    if (days === 1) return "Yesterday";
+    return `${days} days ago`;
   };
 
   return (
@@ -51,49 +133,44 @@ export default function ItemDetailScreen({ route }) {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
-        {/* Top Section with Profile Picture, Name, and Description */}
         <View style={styles.purchaseTop}>
-          {/* Navigate to UserProfilePage when user presses the avatar or name */}
-          <TouchableOpacity onPress={() => navigation.navigate('UserProfilePage', { user: item })}>
-            <Avatar.Image size={50} source={item.profilePic} style={styles.purchaseAvatar} />
+          <TouchableOpacity onPress={() => navigation.navigate('UserProfilePage', { userId: item.friendId })}>
+            <Avatar.Image size={50} source={item.friendProfilePic ? { uri: item.friendProfilePic } : avatarPlaceholder} style={styles.purchaseAvatar} />
           </TouchableOpacity>
           <View style={styles.purchaseDetails}>
-            <TouchableOpacity onPress={() => navigation.navigate('UserProfilePage', { user: item })}>
-              <Text style={styles.purchaseFriend}>{item.friend}</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('UserProfilePage', { userId: item.friendId })}>
+              <Text style={styles.purchaseFriend}>{item.friendName}</Text>
             </TouchableOpacity>
-            <Text style={styles.purchaseText}>purchased {item.item}</Text>
+            <Text style={styles.purchaseText}>purchased {item.itemName}</Text>
             <Text style={styles.purchaseTime}>{item.time}</Text>
             <View style={styles.descriptionSpacing}>
-              <Text style={styles.purchaseDescription}>{item.description}</Text>
+              <Text style={styles.purchaseDescription}>{item.message}</Text>
             </View>
           </View>
         </View>
 
-        {/* Clickable Item Image */}
-        <TouchableOpacity onPress={() => navigation.navigate('ItemPage', { item })}>
-          <Image source={item.image} style={styles.itemImage} />
-        </TouchableOpacity>
+        <Image source={item.imageUrl ? { uri: item.imageUrl } : require('../../assets/item.png')} style={styles.itemImage} />
 
-        {/* Heart Icon */}
         <View style={styles.purchaseActions}>
-          <TouchableOpacity>
-            <Ionicons name="heart-outline" size={28} color="#333" />
+          <TouchableOpacity onPress={handleLikeToggle} style={styles.likeButton}>
+            <Ionicons name={isLiked ? "heart" : "heart-outline"} size={36} color={isLiked ? "red" : "#333"} />
+            <Text style={styles.likeCount}>{likeCount}</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Divider between purchase details and comments */}
         <View style={styles.divider} />
 
-        {/* Comments Section */}
         {comments.map((comment) => (
           <View key={comment.id} style={styles.commentRow}>
-            <TouchableOpacity onPress={() => navigation.navigate('UserProfilePage', { user: comment })}>
-              <Avatar.Image size={40} source={comment.profilePic} style={styles.commentAvatar} />
+            <TouchableOpacity onPress={() => navigation.navigate('UserProfilePage', { userId: comment.userId })}>
+              <Avatar.Image
+                size={40}
+                source={typeof comment.profilePic === 'string' ? { uri: comment.profilePic } : avatarPlaceholder}
+                style={styles.commentAvatar}
+              />
             </TouchableOpacity>
             <View style={styles.commentDetails}>
-              <TouchableOpacity onPress={() => navigation.navigate('UserProfilePage', { user: comment })}>
-                <Text style={styles.commentName}>{comment.name}</Text>
-              </TouchableOpacity>
+              <Text style={styles.commentName}>{comment.name}</Text>
               <Text style={styles.commentText}>{comment.comment}</Text>
               <Text style={styles.commentTime}>{comment.time}</Text>
             </View>
@@ -101,7 +178,6 @@ export default function ItemDetailScreen({ route }) {
         ))}
       </ScrollView>
 
-      {/* Comment Box appears when user is typing */}
       <View style={[styles.commentBoxContainer, isCommenting && styles.commentBoxExpanded]}>
         <TextInput
           style={[styles.commentInput, isCommenting && styles.commentInputExpanded]}
@@ -110,7 +186,7 @@ export default function ItemDetailScreen({ route }) {
           value={commentText}
           onChangeText={setCommentText}
           onSubmitEditing={handleSubmitComment}
-          onFocus={() => setIsCommenting(true)} // Show expanded input when typing
+          onFocus={() => setIsCommenting(true)}
         />
         {isCommenting && (
           <TouchableOpacity style={styles.sendButton} onPress={handleSubmitComment}>
@@ -243,5 +319,12 @@ const styles = StyleSheet.create({
   },
   commentBoxExpanded: {
     paddingBottom: Platform.OS === 'ios' ? 20 : 10,
+  },
+  likeCount: {
+    marginTop: 4,
+    marginRight: 2,
+    fontSize: 16,  // Slightly larger font size for the count
+    color: "#333",
+    textAlign: 'center',
   },
 });

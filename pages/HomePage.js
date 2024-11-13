@@ -1,84 +1,171 @@
-import React from 'react';
-import { View, FlatList, StyleSheet, TouchableOpacity, Platform, StatusBar } from 'react-native';
+import React, { useState, useEffect, useContext } from 'react';
+import { View, FlatList, StyleSheet, TouchableOpacity, Image, Alert, Platform, StatusBar, ActivityIndicator } from 'react-native';
 import { Avatar, Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { collection, getDocs, getDoc, doc, onSnapshot } from 'firebase/firestore';
+import { db, storage } from '../firebaseConfig';
+import { getDownloadURL, ref } from 'firebase/storage';
+import { UserContext } from '../UserContext';
 
 // Use avatar.png as a placeholder
 const avatarPlaceholder = require('../assets/avatar.png');
 
 export default function HomePage() {
   const navigation = useNavigation();
+  const { userProfile, userLoading, toggleLike } = useContext(UserContext);
+  const [friends, setFriends] = useState([]);
+  const [purchases, setPurchases] = useState([]);
+  const [friendsLoading, setFriendsLoading] = useState(true);
 
-  const friends = [
-    { id: 1, name: 'Friend 1', profilePic: avatarPlaceholder },
-    { id: 2, name: 'Friend 2', profilePic: avatarPlaceholder },
-    { id: 3, name: 'Friend 3', profilePic: avatarPlaceholder },
-    { id: 4, name: 'Friend 4', profilePic: avatarPlaceholder },
-    { id: 5, name: 'Friend 5', profilePic: avatarPlaceholder },
-    { id: 6, name: 'Friend 6', profilePic: avatarPlaceholder },
-  ];
+  const loadProfilePicture = async (avatarPath) => {
+    if (!avatarPath) return avatarPlaceholder;
+    try {
+      const avatarRef = ref(storage, avatarPath);
+      return await getDownloadURL(avatarRef);
+    } catch {
+      return avatarPlaceholder;
+    }
+  };
 
-  const purchases = [
-    {
-      id: 1,
-      friend: 'Friend 1',
-      item: 'Item A',
-      time: '10 minutes ago',
-      description: 'Super excited for this gadget!',
-      image: require('../assets/item.png'),
-    },
-    {
-      id: 2,
-      friend: 'Friend 2',
-      item: 'Item B',
-      time: '1 hour ago',
-      description: 'These sneakers will be super comfortable!',
-      image: require('../assets/item.png'),
-    },
-    {
-      id: 3,
-      friend: 'Friend 3',
-      item: 'Item C',
-      time: 'Yesterday',
-      description: 'The chocolates will be delicious!',
-      image: require('../assets/item.png'),
-    },
-  ];
+  useEffect(() => {
+    let unsubscribeFriends;
+    let unsubscribeUserPurchases;
+
+    if (!userLoading && userProfile?.id) {
+      const friendsRef = collection(db, 'users', userProfile.id, 'friends');
+
+      unsubscribeFriends = onSnapshot(friendsRef, async (snapshot) => {
+        const friendsData = await Promise.all(
+          snapshot.docs.map(async (docSnapshot) => {
+            const friendData = docSnapshot.data();
+            const friendDoc = await getDoc(doc(db, 'users', friendData.friendId));
+            
+            if (!friendDoc.exists()) return null;
+
+            const friendProfile = friendDoc.data();
+            const profilePic = await loadProfilePicture(friendProfile.avatar);
+
+            const purchasesRef = collection(db, 'users', friendData.friendId, 'purchases');
+            onSnapshot(purchasesRef, (snapshot) => {
+              const friendPurchases = snapshot.docs.map((purchaseDoc) => {
+                const purchaseData = purchaseDoc.data();
+                return {
+                  id: purchaseDoc.id,
+                  friendId: friendData.friendId,
+                  friendName: `${friendProfile.firstName} ${friendProfile.lastName}`,
+                  friendProfilePic: profilePic,
+                  itemName: purchaseData.itemName,
+                  message: purchaseData.message,
+                  timestamp: purchaseData.timestamp,
+                  imageUrl: purchaseData.imageUrl || require('../assets/item.png'),
+                  likeCount: purchaseData.likeCount || 0,
+                  isLiked: purchaseData.likedBy?.includes(userProfile.id) || false,
+                };
+              });
+
+              setPurchases((prevPurchases) => {
+                const otherPurchases = prevPurchases.filter((p) => p.friendId !== friendData.friendId);
+                return [...otherPurchases, ...friendPurchases].sort((a, b) => b.timestamp?.seconds - a.timestamp?.seconds);
+              });
+            });
+
+            return { id: friendDoc.id, name: friendProfile.firstName, profilePic };
+          })
+        );
+
+        // Filter out null values and set friends
+        setFriends(friendsData.filter(friend => friend));
+        setFriendsLoading(false);
+      });
+
+      // Add user's own purchases to the feed
+      unsubscribeUserPurchases = onSnapshot(collection(db, 'users', userProfile.id, 'purchases'), async (snapshot) => {
+        const profilePic = await loadProfilePicture(userProfile.avatar);
+        const userPurchases = snapshot.docs.map((doc) => {
+          const purchaseData = doc.data();
+          return {
+            id: doc.id,
+            friendId: userProfile.id,
+            friendName: `${userProfile.firstName} ${userProfile.lastName}`,
+            friendProfilePic: profilePic,
+            itemName: purchaseData.itemName,
+            message: purchaseData.message,
+            timestamp: purchaseData.timestamp,
+            imageUrl: purchaseData.imageUrl || require('../assets/item.png'),
+            likeCount: purchaseData.likeCount || 0,
+            isLiked: purchaseData.likedBy?.includes(userProfile.id) || false,
+          };
+        });
+
+        setPurchases((prevPurchases) => {
+          const otherPurchases = prevPurchases.filter((p) => p.friendId !== userProfile.id);
+          return [...otherPurchases, ...userPurchases].sort((a, b) => b.timestamp?.seconds - a.timestamp?.seconds);
+        });
+      });
+    }
+
+    return () => {
+      unsubscribeFriends && unsubscribeFriends();
+      unsubscribeUserPurchases && unsubscribeUserPurchases();
+    };
+  }, [userProfile, userLoading]);
+
+  const handleLike = async (item) => {
+    try {
+      await toggleLike(item.friendId, item.id, item.isLiked);
+    } catch (error) {
+      console.error("Error toggling like:", error);
+    }
+  };
+
+  const formatTime = (timestamp) => {
+    if (!timestamp) return '';
+    const date = new Date(timestamp.seconds * 1000);
+    const now = new Date();
+    const secondsDifference = Math.floor((now - date) / 1000);
+    const minutes = Math.floor(secondsDifference / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+
+    if (minutes < 1) return "Just now";
+    if (minutes < 60) return `${minutes} minutes ago`;
+    if (hours < 24) return `${hours} hours ago`;
+    if (days === 1) return "Yesterday";
+    return `${days} days ago`;
+  };
 
   return (
     <View style={styles.container}>
-      {/* Full-width Top Bar with Search Bubble and Friends */}
       <View style={styles.topBarContainer}>
-        <FlatList
-          horizontal
-          data={friends} 
-          keyExtractor={(item) => item.id.toString()}
-          ListHeaderComponent={() => (
-            <TouchableOpacity 
-              style={styles.searchBubble}
-              onPress={() => navigation.navigate('SearchUsers')} // Navigate to SearchUsersPage
-            >
-              <Ionicons name="search" size={24} color="#ffffff" />
-            </TouchableOpacity>
-          )}
-          renderItem={({ item }) => (
-            <View style={styles.avatarWrapper}>
-              <TouchableOpacity onPress={() => navigation.navigate('UserProfilePage', { user: item })}>
-                <Avatar.Image
-                  size={50}
-                  source={item.profilePic}
-                  style={styles.avatar} // Blue background for friend avatars
-                />
+        {friendsLoading ? (
+          <ActivityIndicator size="small" color="#4CB0E6" />
+        ) : (
+          <FlatList
+            horizontal
+            data={friends}
+            keyExtractor={(item) => item.id.toString()}
+            ListHeaderComponent={() => (
+              <TouchableOpacity
+                style={styles.searchBubble}
+                onPress={() => navigation.navigate('SearchUsers')}
+              >
+                <Ionicons name="search" size={24} color="#ffffff" />
               </TouchableOpacity>
-              <Text style={styles.avatarLabel}>{item.name}</Text>
-            </View>
-          )}
-          showsHorizontalScrollIndicator={false}
-        />
+            )}
+            renderItem={({ item }) => (
+              <View style={styles.avatarWrapper}>
+                <TouchableOpacity onPress={() => navigation.navigate('UserProfilePage', { userId: item.id })}>
+                  <Avatar.Image size={50} source={typeof item.profilePic === 'string' ? { uri: item.profilePic } : avatarPlaceholder} style={styles.avatar} />
+                </TouchableOpacity>
+                <Text style={styles.avatarLabel}>{item.name}</Text>
+              </View>
+            )}
+            showsHorizontalScrollIndicator={false}
+          />
+        )}
       </View>
 
-      {/* Purchases Feed */}
       <FlatList
         data={purchases}
         keyExtractor={(item) => item.id.toString()}
@@ -88,25 +175,35 @@ export default function HomePage() {
               <View style={styles.purchaseTop}>
                 <Avatar.Image 
                   size={50} 
-                  source={item.profilePic} 
-                  style={styles.purchaseAvatar} // Blue background for avatars in purchase list
+                  source={typeof item.friendProfilePic === 'string' ? { uri: item.friendProfilePic } : avatarPlaceholder} 
+                  style={styles.purchaseAvatar}
                 />
                 <View style={styles.purchaseDetails}>
-                  <Text style={styles.purchaseFriend}>{item.friend}</Text>
-                  <Text style={styles.purchaseText}>purchased {item.item}</Text>
-                  <Text style={styles.purchaseTime}>{item.time}</Text>
+                  <Text style={styles.purchaseFriend}>{item.friendName}</Text>
+                  <Text style={styles.purchaseText}>purchased {item.itemName}</Text>
+                  <Text style={styles.purchaseTime}>{formatTime(item.timestamp)}</Text>
                   <View style={styles.descriptionSpacing}>
-                    <Text style={styles.purchaseDescription}>{item.description}</Text>
+                    <Text style={styles.purchaseDescription}>{item.message}</Text>
                   </View>
                 </View>
               </View>
 
+              <Image
+                source={item.imageUrl && typeof item.imageUrl === 'string' ? { uri: item.imageUrl } : require('../assets/item.png')}
+                style={styles.itemImageSquare}
+              />
+
               <View style={styles.purchaseActions}>
-                <TouchableOpacity>
-                  <Ionicons name="heart-outline" size={28} color="#333" />
+                <TouchableOpacity onPress={() => handleLike(item)}>
+                  <Ionicons
+                    name={item.isLiked ? "heart" : "heart-outline"}
+                    size={28}
+                    color={item.isLiked ? "red" : "#333"}
+                  />
+                  <Text style={styles.likeCount}>{item.likeCount}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
-                  style={styles.commentIconWrapper} 
+                <TouchableOpacity
+                  style={styles.commentIconWrapper}
                   onPress={() => navigation.navigate('ItemDetail', { item })}
                 >
                   <Ionicons name="chatbubble-outline" size={28} color="#333" />
@@ -132,7 +229,7 @@ const styles = StyleSheet.create({
     width: '100%',
     backgroundColor: '#ffffff',
     padding: 10,
-    marginBottom: 20,
+    marginBottom: 5,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -213,5 +310,20 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#e0e0e0',
     marginVertical: 5,
+  },
+  itemImageSquare: {
+    width: 100, // Adjust width as needed
+    height: 100, // Adjust height as needed
+    marginVertical: 10, // Space between the message and icons
+    alignSelf: 'left',
+    borderRadius: 10, // add rounded corners
+    marginLeft: 60, // Line up the image with message text
+  },
+  likeCount: {
+    marginTop: 4,
+    marginRight: 2,
+    fontSize: 16,  // Slightly larger font size for the count
+    color: "#333",
+    textAlign: 'center',
   },
 });

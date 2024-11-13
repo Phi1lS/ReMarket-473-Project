@@ -7,6 +7,7 @@ import { UserContext } from '../../UserContext';
 import { doc, setDoc } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage'; // Import Firebase Storage functions
 import { db, auth, storage } from '../../firebaseConfig'; // Import your Firebase config
+import fallbackAvatar from '../../assets/avatar.png';
 
 export default function AccountPage() {
   const { userProfile, setUserProfile } = useContext(UserContext);
@@ -156,7 +157,7 @@ export default function AccountPage() {
           <ActivityIndicator size="large" color="#0070BA" />
         ) : (
           <Image
-            source={avatarUrl ? { uri: avatarUrl } : require('../../assets/avatar.png')}
+            source={avatarUrl ? { uri: avatarUrl } : fallbackAvatar}
             style={styles.profilePicture}
           />
         )}

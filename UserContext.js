@@ -16,13 +16,14 @@ export const UserProvider = ({ children }) => {
     paymentMethods: [],
     listings: [],
     users: [],
-    purchases: [], // Field for purchases
+    purchases: [],
   });
+  const [userLoading, setUserLoading] = useState(true);
   const [items, setItems] = useState([]);
   const [cart, setCart] = useState([]);
 
   useEffect(() => {
-    let unsubscribeProfileListener;
+    let unsubscribeAuth;
     let unsubscribeAddressListener;
     let unsubscribePaymentMethodsListener;
     let unsubscribeListingsListener;
@@ -30,12 +31,12 @@ export const UserProvider = ({ children }) => {
     let unsubscribeUsersListener;
     let unsubscribePurchasesListener;
 
-    const unsubscribeAuth = auth.onAuthStateChanged((user) => {
+    unsubscribeAuth = auth.onAuthStateChanged((user) => {
       if (user) {
+        setUserLoading(true);
         fetchUserProfile(user.uid);
         loadCart(user.uid);
 
-        // Subcollection listeners
         const addressesRef = collection(db, 'users', user.uid, 'shippingAddresses');
         unsubscribeAddressListener = onSnapshot(addressesRef, (querySnapshot) => {
           const addresses = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
@@ -72,19 +73,18 @@ export const UserProvider = ({ children }) => {
           setUserProfile((prevProfile) => ({ ...prevProfile, users }));
         });
       } else {
-        // Reset state if user logs out
         resetUserState();
       }
     });
 
     return () => {
-      unsubscribeAuth();
-      if (unsubscribeAddressListener) unsubscribeAddressListener();
-      if (unsubscribePaymentMethodsListener) unsubscribePaymentMethodsListener();
-      if (unsubscribePurchasesListener) unsubscribePurchasesListener();
-      if (unsubscribeListingsListener) unsubscribeListingsListener();
-      if (unsubscribeItemsListener) unsubscribeItemsListener();
-      if (unsubscribeUsersListener) unsubscribeUsersListener();
+      unsubscribeAuth && unsubscribeAuth();
+      unsubscribeAddressListener && unsubscribeAddressListener();
+      unsubscribePaymentMethodsListener && unsubscribePaymentMethodsListener();
+      unsubscribePurchasesListener && unsubscribePurchasesListener();
+      unsubscribeListingsListener && unsubscribeListingsListener();
+      unsubscribeItemsListener && unsubscribeItemsListener();
+      unsubscribeUsersListener && unsubscribeUsersListener();
     };
   }, []);
 
@@ -102,6 +102,8 @@ export const UserProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Error fetching user profile:', error);
+    } finally {
+      setUserLoading(false);
     }
   };
 
@@ -121,6 +123,7 @@ export const UserProvider = ({ children }) => {
     });
     setItems([]);
     setCart([]);
+    setUserLoading(false);
   };
 
   const loadCart = async (userId) => {
@@ -136,15 +139,42 @@ export const UserProvider = ({ children }) => {
     }
   };
 
+  const toggleLike = async (friendId, purchaseId, isLiked) => {
+    try {
+      const purchaseRef = doc(db, 'users', friendId, 'purchases', purchaseId);
+      const purchaseDoc = await getDoc(purchaseRef);
+
+      if (!purchaseDoc.exists()) {
+        console.error(`Purchase document not found for ID: ${purchaseId}`);
+        return;
+      }
+
+      const purchaseData = purchaseDoc.data();
+      const likedBy = Array.isArray(purchaseData.likedBy) ? purchaseData.likedBy : [];
+      const likeCount = purchaseData.likeCount || 0;
+
+      const newLikeCount = isLiked ? likeCount - 1 : likeCount + 1;
+      const updatedLikedBy = isLiked
+        ? likedBy.filter((id) => id !== userProfile.id)
+        : [...likedBy, userProfile.id];
+
+      await updateDoc(purchaseRef, {
+        likeCount: newLikeCount,
+        likedBy: updatedLikedBy,
+      });
+    } catch (error) {
+      console.error('Error toggling like:', error);
+    }
+  };
+
   const addPurchase = async (purchaseItem) => {
     try {
       const marketplaceRef = doc(db, 'marketplace', purchaseItem.itemId);
       const marketplaceDoc = await getDoc(marketplaceRef);
-  
+
       if (marketplaceDoc.exists()) {
         const marketplaceData = marketplaceDoc.data();
-  
-        // Add the purchase to the buyer's 'purchases' subcollection
+
         const purchaseRef = collection(db, 'users', userProfile.id, 'purchases');
         await addDoc(purchaseRef, {
           itemId: purchaseItem.itemId,
@@ -154,21 +184,22 @@ export const UserProvider = ({ children }) => {
           message: purchaseItem.message,
           imageUrl: marketplaceData.imageUrl || '',
           timestamp: serverTimestamp(),
-          userName: `${userProfile.firstName} ${userProfile.lastName}`, // Buyer name
+          userName: `${userProfile.firstName} ${userProfile.lastName}`,
         });
-  
-        // Add a notification to the seller's 'notifications' subcollection
-        const sellerId = marketplaceData.sellerId; // Assuming the seller ID is stored in marketplace data
+
+        const sellerId = marketplaceData.sellerId;
         const sellerNotificationsRef = collection(db, 'users', sellerId, 'notifications');
         await addDoc(sellerNotificationsRef, {
+          type: 'purchase',
           buyerName: `${userProfile.firstName} ${userProfile.lastName}`,
           itemId: purchaseItem.itemId,
           itemName: purchaseItem.itemName,
           quantity: purchaseItem.quantity,
           timestamp: serverTimestamp(),
-          message: purchaseItem.message || '', // Optional message from buyer
+          message: purchaseItem.message || '',
+          status: 'unread',
         });
-  
+
         console.log("Purchase added with notification to the seller:", purchaseItem);
       } else {
         console.error("Marketplace item not found:", purchaseItem.itemId);
@@ -232,9 +263,51 @@ export const UserProvider = ({ children }) => {
     }
   };
 
+  const sendFriendRequest = async (receiverId) => {
+    try {
+      const friendRequestRef = collection(db, 'friendRequests');
+      await addDoc(friendRequestRef, {
+        senderId: userProfile.id,
+        receiverId,
+        status: 'pending',
+        timestamp: serverTimestamp(),
+      });
+
+      const notificationsRef = collection(db, 'users', receiverId, 'notifications');
+      await addDoc(notificationsRef, {
+        type: 'friendRequest',
+        senderId: userProfile.id,
+        senderName: `${userProfile.firstName} ${userProfile.lastName}`,
+        message: `${userProfile.firstName} ${userProfile.lastName} has sent you a friend request.`,
+        timestamp: serverTimestamp(),
+        status: 'unread',
+      });
+
+      console.log(`Friend request sent to user ${receiverId} with notification.`);
+    } catch (error) {
+      console.error('Error sending friend request:', error);
+    }
+  };
+
+  const addComment = async (friendId, purchaseId, commentText) => {
+    try {
+      const commentsRef = collection(db, 'users', friendId, 'purchases', purchaseId, 'comments');
+      await addDoc(commentsRef, {
+        userId: userProfile.id,
+        name: `${userProfile.firstName} ${userProfile.lastName}`,
+        comment: commentText,
+        timestamp: serverTimestamp(),
+        profilePic: userProfile.avatar || avatarPlaceholder,
+      });
+    } catch (error) {
+      console.error('Error adding comment:', error);
+    }
+  };
+
   return (
     <UserContext.Provider value={{
       userProfile,
+      userLoading,
       items,
       cart,
       setUserProfile,
@@ -243,7 +316,10 @@ export const UserProvider = ({ children }) => {
       removeFromCart,
       addPaymentMethod,
       removePaymentMethod,
-      addPurchase, // New function to add a purchase
+      addPurchase,
+      toggleLike,
+      addComment,
+      sendFriendRequest,
     }}>
       {children}
     </UserContext.Provider>

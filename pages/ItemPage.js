@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useState } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from 'react-native-paper';
+import { useNavigation } from '@react-navigation/native'; // Import useNavigation
 import { UserContext } from '../UserContext'; // Import UserContext
 import { getDownloadURL, ref } from 'firebase/storage'; // Import Firebase storage functions
 import { storage } from '../firebaseConfig'; // Import Firebase config
@@ -9,18 +10,15 @@ import fallbackAvatar from '../assets/avatar.png'; // Ensure you have a fallback
 
 export default function ItemPage({ route }) {
   const { item } = route.params;
-  const { userProfile, addToCart, cart } = useContext(UserContext); // Access cart and addToCart function
-  const [sellerAvatarUrl, setSellerAvatarUrl] = useState(null); // State to store full seller avatar URL
-  const [itemImageUrl, setItemImageUrl] = useState(item.imageUrl); // State for item image URL
+  const { userProfile, addToCart, cart } = useContext(UserContext);
+  const navigation = useNavigation();
+  const [sellerAvatarUrl, setSellerAvatarUrl] = useState(null);
+  const [itemImageUrl, setItemImageUrl] = useState(item.imageUrl);
 
-  // Check if the current user is the seller of this item
   const isSeller = item.sellerId === userProfile.id;
-
-  // Find if item already exists in cart and get its quantity
   const cartItem = cart.find(cartItem => cartItem.itemId === item.id);
   const cartItemQuantity = cartItem ? cartItem.quantity : 0;
 
-  // Function to handle adding item to cart with quantity check
   const handleAddToCart = () => {
     if (cartItemQuantity < item.quantity) {
       addToCart(item);
@@ -30,14 +28,13 @@ export default function ItemPage({ route }) {
     }
   };
 
-  // Fetch seller's avatar URL if it's a relative path in Firebase Storage
   useEffect(() => {
     const fetchSellerAvatarUrl = async () => {
       if (item.sellerAvatar) {
         try {
-          const avatarRef = ref(storage, item.sellerAvatar); // Use relative path from item.sellerAvatar
+          const avatarRef = ref(storage, item.sellerAvatar);
           const url = await getDownloadURL(avatarRef);
-          setSellerAvatarUrl(url); // Store the full download URL
+          setSellerAvatarUrl(url);
         } catch (error) {
           console.error('Error fetching seller avatar URL:', error);
         }
@@ -47,9 +44,9 @@ export default function ItemPage({ route }) {
     const fetchItemImageUrl = async () => {
       if (item.imageUrl) {
         try {
-          const imageRef = ref(storage, item.imageUrl); // Use relative path from item.imageUrl
+          const imageRef = ref(storage, item.imageUrl);
           const url = await getDownloadURL(imageRef);
-          setItemImageUrl(url); // Store the full download URL
+          setItemImageUrl(url);
         } catch (error) {
           console.error('Error fetching item image URL:', error);
         }
@@ -77,16 +74,19 @@ export default function ItemPage({ route }) {
         {/* Seller Information */}
         <View style={styles.sellerContainer}>
           <Text style={styles.sellerTitle}>Seller Information</Text>
-          <View style={styles.sellerInfo}>
-            <Avatar.Image 
-              size={50} 
-              source={sellerAvatarUrl ? { uri: sellerAvatarUrl } : fallbackAvatar} 
-              style={styles.avatar} 
+          <TouchableOpacity
+            style={styles.sellerInfo}
+            onPress={() => navigation.push('UserProfilePage', { userId: item.sellerId })}
+          >
+            <Avatar.Image
+              size={50}
+              source={sellerAvatarUrl ? { uri: sellerAvatarUrl } : fallbackAvatar}
+              style={styles.avatar}
             />
             <View style={styles.sellerDetails}>
               <Text style={styles.sellerName}>{item.sellerName || 'Unknown Seller'}</Text>
             </View>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* Add to Cart Button */}
@@ -94,10 +94,10 @@ export default function ItemPage({ route }) {
           <TouchableOpacity
             style={[
               styles.addToCartButton,
-              isOutOfStock && styles.disabledButton, // Apply disabled style if out of stock
+              isOutOfStock && styles.disabledButton,
             ]}
             onPress={handleAddToCart}
-            disabled={isOutOfStock} // Disable button if out of stock
+            disabled={isOutOfStock}
           >
             <Ionicons name="cart-outline" size={24} color="#fff" />
             <Text style={styles.addToCartText}>
@@ -109,7 +109,11 @@ export default function ItemPage({ route }) {
         {/* Item Category */}
         <View style={styles.categoryContainer}>
           <Text style={styles.categoryTitle}>Category</Text>
-          <Text style={styles.itemCategory}>{item.category}</Text>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('CategoryPage', { category: item.category })}
+          >
+            <Text style={styles.itemCategory}>{item.category}</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </ScrollView>
