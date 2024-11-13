@@ -289,6 +289,21 @@ export const UserProvider = ({ children }) => {
     }
   };
 
+  const addComment = async (friendId, purchaseId, commentText) => {
+    try {
+      const commentsRef = collection(db, 'users', friendId, 'purchases', purchaseId, 'comments');
+      await addDoc(commentsRef, {
+        userId: userProfile.id,
+        name: `${userProfile.firstName} ${userProfile.lastName}`,
+        comment: commentText,
+        timestamp: serverTimestamp(),
+        profilePic: userProfile.avatar || avatarPlaceholder,
+      });
+    } catch (error) {
+      console.error('Error adding comment:', error);
+    }
+  };
+
   return (
     <UserContext.Provider value={{
       userProfile,
@@ -303,6 +318,7 @@ export const UserProvider = ({ children }) => {
       removePaymentMethod,
       addPurchase,
       toggleLike,
+      addComment,
       sendFriendRequest,
     }}>
       {children}
