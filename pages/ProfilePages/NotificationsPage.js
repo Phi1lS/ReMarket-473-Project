@@ -4,6 +4,7 @@ import { collection, onSnapshot, updateDoc, doc, addDoc, getDoc, query, where, g
 import { db } from '../../firebaseConfig';
 import { UserContext } from '../../UserContext'; // Ensure your Firebase config is correctly imported
 
+
 export default function NotificationsPage() {
   const { userProfile } = useContext(UserContext);
   const [notifications, setNotifications] = useState([]);
@@ -18,7 +19,12 @@ export default function NotificationsPage() {
         ...doc.data(),
       }));
 
-      const sortedNotifications = notificationsData.sort((a, b) => b.timestamp.seconds - a.timestamp.seconds);
+      const sortedNotifications = notificationsData.sort((a, b) => {
+        const timestampA = a.timestamp?.seconds || 0;
+        const timestampB = b.timestamp?.seconds || 0;
+        return timestampB - timestampA;
+      });
+
       setNotifications(sortedNotifications);
     });
 
@@ -144,7 +150,7 @@ export default function NotificationsPage() {
   
       {/* Notification Date */}
       <Text style={styles.notificationDate}>
-        {new Date(item.timestamp?.seconds * 1000).toLocaleDateString()}
+        {item.timestamp ? new Date(item.timestamp.seconds * 1000).toLocaleDateString() : 'Unknown Date'}
       </Text>
   
       {/* Friend Request Actions */}
