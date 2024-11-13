@@ -31,55 +31,10 @@ export default function HomePage() {
   useEffect(() => {
     let unsubscribeFriends;
     let unsubscribeUserPurchases;
+    const friendPurchasesListeners = [];
 
     if (!userLoading && userProfile?.id) {
-      const friendsRef = collection(db, 'users', userProfile.id, 'friends');
-
-      unsubscribeFriends = onSnapshot(friendsRef, async (snapshot) => {
-        const friendsData = await Promise.all(
-          snapshot.docs.map(async (docSnapshot) => {
-            const friendData = docSnapshot.data();
-            const friendDoc = await getDoc(doc(db, 'users', friendData.friendId));
-            
-            if (!friendDoc.exists()) return null;
-
-            const friendProfile = friendDoc.data();
-            const profilePic = await loadProfilePicture(friendProfile.avatar);
-
-            const purchasesRef = collection(db, 'users', friendData.friendId, 'purchases');
-            onSnapshot(purchasesRef, (snapshot) => {
-              const friendPurchases = snapshot.docs.map((purchaseDoc) => {
-                const purchaseData = purchaseDoc.data();
-                return {
-                  id: purchaseDoc.id,
-                  friendId: friendData.friendId,
-                  friendName: `${friendProfile.firstName} ${friendProfile.lastName}`,
-                  friendProfilePic: profilePic,
-                  itemName: purchaseData.itemName,
-                  message: purchaseData.message,
-                  timestamp: purchaseData.timestamp,
-                  imageUrl: purchaseData.imageUrl || require('../assets/item.png'),
-                  likeCount: purchaseData.likeCount || 0,
-                  isLiked: purchaseData.likedBy?.includes(userProfile.id) || false,
-                };
-              });
-
-              setPurchases((prevPurchases) => {
-                const otherPurchases = prevPurchases.filter((p) => p.friendId !== friendData.friendId);
-                return [...otherPurchases, ...friendPurchases].sort((a, b) => b.timestamp?.seconds - a.timestamp?.seconds);
-              });
-            });
-
-            return { id: friendDoc.id, name: friendProfile.firstName, profilePic };
-          })
-        );
-
-        // Filter out null values and set friends
-        setFriends(friendsData.filter(friend => friend));
-        setFriendsLoading(false);
-      });
-
-      // Add user's own purchases to the feed
+      // Load user’s own purchases initially and set up listener
       unsubscribeUserPurchases = onSnapshot(collection(db, 'users', userProfile.id, 'purchases'), async (snapshot) => {
         const profilePic = await loadProfilePicture(userProfile.avatar);
         const userPurchases = snapshot.docs.map((doc) => {
@@ -103,11 +58,68 @@ export default function HomePage() {
           return [...otherPurchases, ...userPurchases].sort((a, b) => b.timestamp?.seconds - a.timestamp?.seconds);
         });
       });
+
+      // Load friends and set up purchases listeners
+      const friendsRef = collection(db, 'users', userProfile.id, 'friends');
+      unsubscribeFriends = onSnapshot(friendsRef, async (snapshot) => {
+        const updatedFriends = await Promise.all(
+          snapshot.docs.map(async (docSnapshot) => {
+            const friendData = docSnapshot.data();
+            const friendDoc = await getDoc(doc(db, 'users', friendData.friendId));
+
+            if (!friendDoc.exists()) return null;
+
+            const friendProfile = friendDoc.data();
+            const profilePic = await loadProfilePicture(friendProfile.avatar);
+
+            // Set up listener for each friend's purchases
+            const purchasesRef = collection(db, 'users', friendData.friendId, 'purchases');
+            const unsubscribePurchases = onSnapshot(purchasesRef, (snapshot) => {
+              const friendPurchases = snapshot.docs.map((purchaseDoc) => {
+                const purchaseData = purchaseDoc.data();
+                return {
+                  id: purchaseDoc.id,
+                  friendId: friendData.friendId,
+                  friendName: `${friendProfile.firstName} ${friendProfile.lastName}`,
+                  friendProfilePic: profilePic,
+                  itemName: purchaseData.itemName,
+                  message: purchaseData.message,
+                  timestamp: purchaseData.timestamp,
+                  imageUrl: purchaseData.imageUrl || require('../assets/item.png'),
+                  likeCount: purchaseData.likeCount || 0,
+                  isLiked: purchaseData.likedBy?.includes(userProfile.id) || false,
+                };
+              });
+
+              setPurchases((prevPurchases) => {
+                const otherPurchases = prevPurchases.filter((p) => p.friendId !== friendData.friendId);
+                return [...otherPurchases, ...friendPurchases].sort((a, b) => b.timestamp?.seconds - a.timestamp?.seconds);
+              });
+            });
+
+            // Keep track of this friend's purchases listener to unsubscribe later if needed
+            friendPurchasesListeners.push({ friendId: friendData.friendId, unsubscribe: unsubscribePurchases });
+
+            return { id: friendDoc.id, name: friendProfile.firstName, profilePic };
+          })
+        );
+
+        // Filter out null values and set friends
+        const validFriends = updatedFriends.filter(friend => friend);
+        setFriends(validFriends);
+        setFriendsLoading(false);
+
+        // Update purchases to remove any from removed friends
+        setPurchases((prevPurchases) =>
+          prevPurchases.filter((p) => p.friendId === userProfile.id || validFriends.some(f => f.id === p.friendId))
+        );
+      });
     }
 
     return () => {
       unsubscribeFriends && unsubscribeFriends();
       unsubscribeUserPurchases && unsubscribeUserPurchases();
+      friendPurchasesListeners.forEach(listener => listener.unsubscribe());
     };
   }, [userProfile, userLoading]);
 
