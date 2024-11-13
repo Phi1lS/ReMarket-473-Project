@@ -27,6 +27,7 @@ export default function UserProfilePage({ route }) {
     const initializePage = async () => {
       if (!userId) return;
       try {
+        // Fetch user details
         const userDoc = await getDoc(doc(db, 'users', userId));
         if (userDoc.exists()) {
           const userData = userDoc.data();
@@ -38,13 +39,49 @@ export default function UserProfilePage({ route }) {
           }
         }
 
+        // Fetch friends list
+        await fetchFriendsList();
+
         // Set up real-time friend status and pending request listeners
         setupFriendStatusListener();
         setupPendingRequestListener();
       } catch (error) {
         console.error('Error initializing user profile:', error);
       } finally {
-        setLoading(false);
+        setLoading(false); // Set loading to false after all data is fetched
+      }
+    };
+
+    const fetchFriendsList = async () => {
+      try {
+        const friendsRef = collection(db, 'users', userId, 'friends');
+        const friendsSnapshot = await getDocs(friendsRef);
+        const friendsData = await Promise.all(
+          friendsSnapshot.docs.map(async (docSnapshot) => {
+            const friendData = docSnapshot.data();
+            const friendDoc = await getDoc(doc(db, 'users', friendData.friendId));
+            if (friendDoc.exists()) {
+              const friendProfile = friendDoc.data();
+              if (friendProfile.avatar) {
+                try {
+                  const avatarRef = ref(storage, friendProfile.avatar);
+                  friendProfile.avatar = await getDownloadURL(avatarRef);
+                } catch (error) {
+                  console.warn(`Failed to fetch avatar for friend ${friendDoc.id}:`, error);
+                }
+              }
+              return { id: friendDoc.id, ...friendProfile };
+            }
+            return null;
+          })
+        );
+
+        const sortedFriends = friendsData
+          .filter(friend => friend)
+          .sort((a, b) => a.firstName.localeCompare(b.firstName));
+        setFriendsList(sortedFriends);
+      } catch (error) {
+        console.error("Error fetching friends list:", error);
       }
     };
 
