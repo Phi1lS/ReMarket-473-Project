@@ -11,7 +11,7 @@ import fallbackAvatar from '../assets/avatar.png'; // Ensure you have a fallback
 export default function ItemPage({ route }) {
   const { item } = route.params;
   const { userProfile, addToCart, cart } = useContext(UserContext);
-  const navigation = useNavigation(); // Initialize navigation
+  const navigation = useNavigation();
   const [sellerAvatarUrl, setSellerAvatarUrl] = useState(null);
   const [itemImageUrl, setItemImageUrl] = useState(item.imageUrl);
 
@@ -76,7 +76,7 @@ export default function ItemPage({ route }) {
           <Text style={styles.sellerTitle}>Seller Information</Text>
           <TouchableOpacity
             style={styles.sellerInfo}
-            onPress={() => navigation.push('UserProfilePage', { userId: item.sellerId })} // Navigate to UserProfilePage
+            onPress={() => navigation.push('UserProfilePage', { userId: item.sellerId })}
           >
             <Avatar.Image
               size={50}
@@ -109,7 +109,11 @@ export default function ItemPage({ route }) {
         {/* Item Category */}
         <View style={styles.categoryContainer}>
           <Text style={styles.categoryTitle}>Category</Text>
-          <Text style={styles.itemCategory}>{item.category}</Text>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('CategoryPage', { category: item.category })}
+          >
+            <Text style={styles.itemCategory}>{item.category}</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </ScrollView>
