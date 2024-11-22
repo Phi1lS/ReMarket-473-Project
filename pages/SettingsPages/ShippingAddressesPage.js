@@ -1,5 +1,5 @@
 import React, { useContext, useState, useEffect } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Modal, TextInput, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { UserContext } from '../../UserContext';
 import { auth, db } from '../../firebaseConfig';
 import { collection, addDoc, updateDoc, doc, deleteDoc, onSnapshot } from 'firebase/firestore';
@@ -134,7 +134,7 @@ export default function ShippingAddressesPage({ navigation }) {
               {item.apt && <Text style={styles.addressText}>Apt: {item.apt}</Text>}
               <Text style={styles.addressText}>{item.city}, {item.state} {item.zipCode}</Text>
             </View>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.editButton}
               onPress={() => handleEditAddress(item)}
             >
@@ -146,7 +146,7 @@ export default function ShippingAddressesPage({ navigation }) {
         ListEmptyComponent={<Text style={styles.infoText}>No shipping addresses available.</Text>}
       />
 
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.newAddressButton}
         onPress={handleAddAddress}
       >
@@ -160,7 +160,10 @@ export default function ShippingAddressesPage({ navigation }) {
         onRequestClose={closeModal}
         onDismiss={handleModalDismiss}
       >
-        <View style={styles.modalContainer}>
+        <KeyboardAvoidingView
+          style={styles.modalContainer}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <View style={styles.modalContent}>
             <TouchableOpacity style={styles.closeButton} onPress={closeModal}>
               <Text style={styles.closeButtonText}>X</Text>
@@ -168,51 +171,52 @@ export default function ShippingAddressesPage({ navigation }) {
 
             <Text style={styles.modalTitle}>{editingAddress ? 'Edit Address' : 'Add Address'}</Text>
 
-            {/* Form Fields */}
-            <TextInput
-              placeholder="First Name"
-              style={styles.input}
-              value={newAddress.firstName}
-              onChangeText={(text) => setNewAddress({ ...newAddress, firstName: text })}
-            />
-            <TextInput
-              placeholder="Last Name"
-              style={styles.input}
-              value={newAddress.lastName}
-              onChangeText={(text) => setNewAddress({ ...newAddress, lastName: text })}
-            />
-            <TextInput
-              placeholder="Street Address"
-              style={styles.input}
-              value={newAddress.streetAddress}
-              onChangeText={(text) => setNewAddress({ ...newAddress, streetAddress: text })}
-            />
-            <TextInput
-              placeholder="Apt, Suite, Bldg (optional)"
-              style={styles.input}
-              value={newAddress.apt}
-              onChangeText={(text) => setNewAddress({ ...newAddress, apt: text })}
-            />
-            <TextInput
-              placeholder="City"
-              style={styles.input}
-              value={newAddress.city}
-              onChangeText={(text) => setNewAddress({ ...newAddress, city: text })}
-            />
-            <View style={styles.stateZipContainer}>
+            <ScrollView>
               <TextInput
-                placeholder="State"
-                style={[styles.input, styles.stateInput]}
-                value={newAddress.state}
-                onChangeText={(text) => setNewAddress({ ...newAddress, state: text })}
+                placeholder="First Name"
+                style={styles.input}
+                value={newAddress.firstName}
+                onChangeText={(text) => setNewAddress({ ...newAddress, firstName: text })}
               />
               <TextInput
-                placeholder="ZIP Code"
-                style={[styles.input, styles.zipInput]}
-                value={newAddress.zipCode}
-                onChangeText={(text) => setNewAddress({ ...newAddress, zipCode: text })}
+                placeholder="Last Name"
+                style={styles.input}
+                value={newAddress.lastName}
+                onChangeText={(text) => setNewAddress({ ...newAddress, lastName: text })}
               />
-            </View>
+              <TextInput
+                placeholder="Street Address"
+                style={styles.input}
+                value={newAddress.streetAddress}
+                onChangeText={(text) => setNewAddress({ ...newAddress, streetAddress: text })}
+              />
+              <TextInput
+                placeholder="Apt, Suite, Bldg (optional)"
+                style={styles.input}
+                value={newAddress.apt}
+                onChangeText={(text) => setNewAddress({ ...newAddress, apt: text })}
+              />
+              <TextInput
+                placeholder="City"
+                style={styles.input}
+                value={newAddress.city}
+                onChangeText={(text) => setNewAddress({ ...newAddress, city: text })}
+              />
+              <View style={styles.stateZipContainer}>
+                <TextInput
+                  placeholder="State"
+                  style={[styles.input, styles.stateInput]}
+                  value={newAddress.state}
+                  onChangeText={(text) => setNewAddress({ ...newAddress, state: text })}
+                />
+                <TextInput
+                  placeholder="ZIP Code"
+                  style={[styles.input, styles.zipInput]}
+                  value={newAddress.zipCode}
+                  onChangeText={(text) => setNewAddress({ ...newAddress, zipCode: text })}
+                />
+              </View>
+            </ScrollView>
 
             <TouchableOpacity style={styles.saveButton} onPress={handleSaveAddress}>
               <Text style={styles.saveButtonText}>Save</Text>
@@ -224,7 +228,7 @@ export default function ShippingAddressesPage({ navigation }) {
               </TouchableOpacity>
             )}
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

@@ -1,5 +1,5 @@
 import React, { useContext, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Modal, TextInput, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { UserContext } from '../../UserContext';
 import { auth, db } from '../../firebaseConfig';
 import { doc, collection, addDoc, updateDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
@@ -102,7 +102,6 @@ export default function PaymentMethodsPage() {
     <View style={styles.container}>
       <Text style={styles.title}>Payment Methods</Text>
 
-      {/* List of payment methods */}
       <FlatList
         data={userProfile.paymentMethods || []}
         renderItem={({ item }) => (
@@ -112,7 +111,7 @@ export default function PaymentMethodsPage() {
               <Text style={styles.paymentMethodText}>Expires: {item.expirationDate}</Text>
               <Text style={styles.paymentMethodText}>ZIP: {item.zipCode}</Text>
             </View>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.editButton}
               onPress={() => handleEditPaymentMethod(item)}
             >
@@ -124,22 +123,20 @@ export default function PaymentMethodsPage() {
         ListEmptyComponent={<Text style={styles.infoText}>No payment methods available.</Text>}
       />
 
-      {/* New Payment Method Button */}
-      <TouchableOpacity 
-        style={styles.newPaymentMethodButton}
-        onPress={handleAddPaymentMethod}
-      >
+      <TouchableOpacity style={styles.newPaymentMethodButton} onPress={handleAddPaymentMethod}>
         <Text style={styles.newPaymentMethodButtonText}>New Payment Method</Text>
       </TouchableOpacity>
 
-      {/* Modal for Adding or Editing Payment Method */}
       <Modal
         visible={isModalVisible}
         animationType="slide"
         transparent={true}
         onRequestClose={closeModal}
       >
-        <View style={styles.modalContainer}>
+        <KeyboardAvoidingView
+          style={styles.modalContainer}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <View style={styles.modalContent}>
             <TouchableOpacity style={styles.closeButton} onPress={closeModal}>
               <Text style={styles.closeButtonText}>X</Text>
@@ -147,51 +144,44 @@ export default function PaymentMethodsPage() {
 
             <Text style={styles.modalTitle}>{editingPaymentMethod ? 'Edit Payment Method' : 'Add Payment Method'}</Text>
 
-            {/* Form Fields */}
-            <TextInput
-              placeholder="Card Number"
-              style={styles.input}
-              value={newPaymentMethod.cardNumber}
-              onChangeText={handleCardNumberChange}
-              keyboardType="numeric"
-            />
-            <TextInput
-              placeholder="Expiration Date (MM/YY)"
-              style={styles.input}
-              value={newPaymentMethod.expirationDate}
-              onChangeText={handleExpirationDateChange}
-              keyboardType="numeric"
-            />
-            <TextInput
-              placeholder="Security Code"
-              style={styles.input}
-              value={newPaymentMethod.securityCode}
-              onChangeText={handleSecurityCodeChange}
-              keyboardType="numeric"
-              maxLength={3}
-            />
-            <TextInput
-              placeholder="ZIP Code"
-              style={styles.input}
-              value={newPaymentMethod.zipCode}
-              onChangeText={handleZipCodeChange}
-              keyboardType="numeric"
-              maxLength={5}
-            />
+            <ScrollView>
+              <TextInput
+                placeholder="Card Number"
+                style={styles.input}
+                value={newPaymentMethod.cardNumber}
+                onChangeText={handleCardNumberChange}
+                keyboardType="numeric"
+              />
+              <TextInput
+                placeholder="Expiration Date (MM/YY)"
+                style={styles.input}
+                value={newPaymentMethod.expirationDate}
+                onChangeText={handleExpirationDateChange}
+                keyboardType="numeric"
+              />
+              <TextInput
+                placeholder="Security Code"
+                style={styles.input}
+                value={newPaymentMethod.securityCode}
+                onChangeText={handleSecurityCodeChange}
+                keyboardType="numeric"
+                maxLength={3}
+              />
+              <TextInput
+                placeholder="ZIP Code"
+                style={styles.input}
+                value={newPaymentMethod.zipCode}
+                onChangeText={handleZipCodeChange}
+                keyboardType="numeric"
+                maxLength={5}
+              />
+            </ScrollView>
 
-            {/* Save Button */}
             <TouchableOpacity style={styles.saveButton} onPress={handleSavePaymentMethod}>
               <Text style={styles.saveButtonText}>Save</Text>
             </TouchableOpacity>
-
-            {/* Remove Button for Editing */}
-            {editingPaymentMethod && (
-              <TouchableOpacity style={styles.removeButton} onPress={handleRemovePaymentMethod}>
-                <Text style={styles.removeButtonText}>Remove</Text>
-              </TouchableOpacity>
-            )}
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
