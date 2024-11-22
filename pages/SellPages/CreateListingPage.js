@@ -159,7 +159,7 @@ export default function CreateListingPage({ navigation }) {
 
           <TextInput
             style={styles.input}
-            placeholder="Item Description"
+            placeholder="Item Name"
             value={description}
             onChangeText={setDescription}
             placeholderTextColor="#888"

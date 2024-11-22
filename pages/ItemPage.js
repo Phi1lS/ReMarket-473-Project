@@ -36,7 +36,7 @@ export default function ItemPage({ route }) {
           const url = await getDownloadURL(avatarRef);
           setSellerAvatarUrl(url);
         } catch (error) {
-          console.error('Error fetching seller avatar URL:', error);
+          //console.error('Error fetching seller avatar URL:', error);
         }
       }
     };

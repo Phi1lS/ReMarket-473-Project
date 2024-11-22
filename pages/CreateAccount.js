@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, TextInput, Text, StyleSheet, Alert, TouchableOpacity, useColorScheme } from 'react-native';
+import { View, TextInput, Text, StyleSheet, Alert, TouchableOpacity, useColorScheme, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth, db } from '../firebaseConfig'; // Import auth and db (Firestore)
 import { doc, setDoc } from 'firebase/firestore'; // Firestore functions
@@ -54,78 +54,83 @@ export default function CreateAccountScreen({ navigation }) {
   };
 
   return (
-    <View style={isDarkMode ? styles.darkContainer : styles.container}>
-      <Text style={isDarkMode ? styles.darkTitle : styles.title}>Create Your Account</Text>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView contentContainerStyle={isDarkMode ? styles.darkContainer : styles.container}>
+        <Text style={isDarkMode ? styles.darkTitle : styles.title}>Create Your Account</Text>
 
-      {/* First Name Input */}
-      <TextInput
-        style={isDarkMode ? styles.darkInput : styles.input}
-        placeholder="First Name"
-        value={firstName}
-        onChangeText={setFirstName}
-        placeholderTextColor={isDarkMode ? '#AAAAAA' : '#888'}
-      />
+        {/* First Name Input */}
+        <TextInput
+          style={isDarkMode ? styles.darkInput : styles.input}
+          placeholder="First Name"
+          value={firstName}
+          onChangeText={setFirstName}
+          placeholderTextColor={isDarkMode ? '#AAAAAA' : '#888'}
+        />
 
-      {/* Last Name Input */}
-      <TextInput
-        style={isDarkMode ? styles.darkInput : styles.input}
-        placeholder="Last Name"
-        value={lastName}
-        onChangeText={setLastName}
-        placeholderTextColor={isDarkMode ? '#AAAAAA' : '#888'}
-      />
+        {/* Last Name Input */}
+        <TextInput
+          style={isDarkMode ? styles.darkInput : styles.input}
+          placeholder="Last Name"
+          value={lastName}
+          onChangeText={setLastName}
+          placeholderTextColor={isDarkMode ? '#AAAAAA' : '#888'}
+        />
 
-      {/* Username Input */}
-      <TextInput
-        style={isDarkMode ? styles.darkInput : styles.input}
-        placeholder="Username"
-        value={username}
-        onChangeText={handleUsernameChange} // Use the new function to ensure '@' is added
-        placeholderTextColor={isDarkMode ? '#AAAAAA' : '#888'}
-        autoCapitalize="none" // Prevent automatic capitalization
-      />
+        {/* Username Input */}
+        <TextInput
+          style={isDarkMode ? styles.darkInput : styles.input}
+          placeholder="Username"
+          value={username}
+          onChangeText={handleUsernameChange}
+          placeholderTextColor={isDarkMode ? '#AAAAAA' : '#888'}
+          autoCapitalize="none"
+        />
 
-      {/* Email Input */}
-      <TextInput
-        style={isDarkMode ? styles.darkInput : styles.input}
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
-        placeholderTextColor={isDarkMode ? '#AAAAAA' : '#888'}
-      />
+        {/* Email Input */}
+        <TextInput
+          style={isDarkMode ? styles.darkInput : styles.input}
+          placeholder="Email"
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          placeholderTextColor={isDarkMode ? '#AAAAAA' : '#888'}
+        />
 
-      {/* Password Input */}
-      <TextInput
-        style={isDarkMode ? styles.darkInput : styles.input}
-        placeholder="Password"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        placeholderTextColor={isDarkMode ? '#AAAAAA' : '#888'}
-      />
+        {/* Password Input */}
+        <TextInput
+          style={isDarkMode ? styles.darkInput : styles.input}
+          placeholder="Password"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          placeholderTextColor={isDarkMode ? '#AAAAAA' : '#888'}
+        />
 
-      {/* Confirm Password Input */}
-      <TextInput
-        style={isDarkMode ? styles.darkInput : styles.input}
-        placeholder="Confirm Password"
-        value={confirmPassword}
-        onChangeText={setConfirmPassword}
-        secureTextEntry
-        placeholderTextColor={isDarkMode ? '#AAAAAA' : '#888'}
-      />
+        {/* Confirm Password Input */}
+        <TextInput
+          style={isDarkMode ? styles.darkInput : styles.input}
+          placeholder="Confirm Password"
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+          secureTextEntry
+          placeholderTextColor={isDarkMode ? '#AAAAAA' : '#888'}
+        />
 
-      {/* Create Account Button */}
-      <TouchableOpacity style={isDarkMode ? styles.darkButton : styles.button} onPress={handleCreateAccount}>
-        <Text style={styles.buttonText}>Create Account</Text>
-      </TouchableOpacity>
+        {/* Create Account Button */}
+        <TouchableOpacity style={isDarkMode ? styles.darkButton : styles.button} onPress={handleCreateAccount}>
+          <Text style={styles.buttonText}>Create Account</Text>
+        </TouchableOpacity>
 
-      {/* Back to Login Button */}
-      <TouchableOpacity onPress={() => navigation.navigate('LoginScreen')}>
-        <Text style={isDarkMode ? styles.darkBackButtonText : styles.backButtonText}>Back to Login</Text>
-      </TouchableOpacity>
-    </View>
+        {/* Back to Login Button */}
+        <TouchableOpacity onPress={() => navigation.navigate('LoginScreen')}>
+          <Text style={isDarkMode ? styles.darkBackButtonText : styles.backButtonText}>Back to Login</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

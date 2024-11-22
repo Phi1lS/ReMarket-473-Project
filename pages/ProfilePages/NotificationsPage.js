@@ -141,6 +141,7 @@ export default function NotificationsPage() {
     return (
       <Swipeable renderRightActions={renderRightActions}>
         <View style={styles.notificationItem}>
+          {/* Main Notification Content Based on Type */}
           {item.type === 'purchase' && (
             <>
               <Text style={styles.notificationText}>
@@ -151,11 +152,27 @@ export default function NotificationsPage() {
               )}
             </>
           )}
-  
+          
           {item.type === 'friendRequest' && (
-            <Text style={styles.notificationText}>
-              {item.senderName} has sent you a friend request.
-            </Text>
+            <>
+              <Text style={styles.notificationText}>
+                {item.senderName} has sent you a friend request.
+              </Text>
+              <View style={styles.friendRequestButtons}>
+                <TouchableOpacity
+                  style={styles.acceptButton}
+                  onPress={() => acceptFriendRequest(item)}
+                >
+                  <Text style={styles.buttonText}>Accept</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.denyButton}
+                  onPress={() => denyFriendRequest(item)}
+                >
+                  <Text style={styles.buttonText}>Deny</Text>
+                </TouchableOpacity>
+              </View>
+            </>
           )}
   
           {item.type === 'friendAccepted' && (
