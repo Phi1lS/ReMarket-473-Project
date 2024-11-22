@@ -1,5 +1,5 @@
 import React, { useContext, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, Alert } from 'react-native';
+import { View, KeyboardAvoidingView, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, Alert, Platform, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { UserContext } from '../../UserContext';
 import { useNavigation } from '@react-navigation/native';
@@ -103,7 +103,11 @@ export default function CheckoutPage() {
   );
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+    >
       <Text style={styles.sectionTitle}>Items for Checkout</Text>
       <FlatList
         data={cartItemsWithDetails}
@@ -190,14 +194,17 @@ export default function CheckoutPage() {
           styles.checkoutButton,
           (!selectedAddress || !selectedPaymentMethod || isProcessing) && styles.disabledButton,
         ]}
-        onPress={handleCheckout}
+        onPress={() => {
+          Keyboard.dismiss(); // Dismiss the keyboard
+          handleCheckout();
+        }}
         disabled={!selectedAddress || !selectedPaymentMethod || isProcessing}
       >
         <Text style={styles.checkoutButtonText}>
           {isProcessing ? 'Processing...' : 'Checkout'}
         </Text>
       </TouchableOpacity>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
