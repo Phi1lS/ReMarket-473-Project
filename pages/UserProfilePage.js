@@ -22,6 +22,7 @@ export default function UserProfilePage({ route }) {
   const [isPending, setIsPending] = useState(false);
   const [isFriend, setIsFriend] = useState(false);
   const [isPendingRequest, setIsPendingRequest] = useState(false);
+  const [isSender, setIsSender] = useState(false);
 
   useEffect(() => {
     const initializePage = async () => {
@@ -95,17 +96,46 @@ export default function UserProfilePage({ route }) {
     };
 
     const setupPendingRequestListener = () => {
+    
       const friendRequestsRef = collection(db, 'friendRequests');
-      const pendingRequestQuery = query(
+    
+      // First query: Current user is the sender, visiting profile is the receiver
+      const sentRequestQuery = query(
         friendRequestsRef,
-        where("senderId", "==", userId),
-        where("receiverId", "==", userProfile.id),
-        where("status", "==", "pending")
+        where('senderId', '==', userProfile.id),
+        where('receiverId', '==', userId),
+        where('status', '==', 'pending')
       );
-      const unsubscribe = onSnapshot(pendingRequestQuery, (querySnapshot) => {
-        setIsPendingRequest(!querySnapshot.empty);
+    
+      // Second query: Current user is the receiver, visiting profile is the sender
+      const receivedRequestQuery = query(
+        friendRequestsRef,
+        where('receiverId', '==', userProfile.id),
+        where('senderId', '==', userId),
+        where('status', '==', 'pending')
+      );
+    
+      // Listen to sent requests
+      const unsubscribeSentRequest = onSnapshot(sentRequestQuery, (querySnapshot) => {
+        if (!querySnapshot.empty) {
+          setIsPendingRequest(true);
+          setIsSender(true); // Current user sent the request
+        }
       });
-      return unsubscribe;
+    
+      // Listen to received requests
+      const unsubscribeReceivedRequest = onSnapshot(receivedRequestQuery, (querySnapshot) => {
+        if (!querySnapshot.empty) {
+          setIsPendingRequest(true);
+          setIsSender(false); // Current user received the request
+        }
+      });
+    
+      // Combine both unsubscribers
+      return () => {
+        unsubscribeSentRequest();
+        unsubscribeReceivedRequest();
+      };
     };
 
     const unsubscribeFriendsListener = setupFriendStatusListener();
@@ -131,7 +161,6 @@ export default function UserProfilePage({ route }) {
       const querySnapshot = await getDocs(q);
   
       if (querySnapshot.empty) {
-        console.log("No pending friend request found.");
         return;
       }
   
@@ -191,7 +220,6 @@ export default function UserProfilePage({ route }) {
       const querySnapshot = await getDocs(q);
   
       if (querySnapshot.empty) {
-        console.log("No pending friend request found.");
         return;
       }
   
@@ -331,6 +359,36 @@ export default function UserProfilePage({ route }) {
 
   const renderFriendRequestButtons = () => {
     if (isPendingRequest) {
+      // If the current user is the sender
+      if (isSender) {
+        return (
+          <TouchableOpacity
+            style={styles.addFriendButton}
+            onPress={() => {
+              if (isFriend) {
+                Alert.alert(
+                  "Remove Friend",
+                  `Are you sure you want to remove ${user.firstName} as a friend?`,
+                  [
+                    { text: "Cancel", style: "cancel" },
+                    { text: "Yes", onPress: handleRemoveFriend }
+                  ]
+                );
+              } else {
+                handleAddFriend();
+              }
+            }}
+            disabled={true} // Prevent re-sending or canceling the pending request
+          >
+            <Ionicons name="hourglass-outline" size={24} color="#fff" />
+            <Text style={styles.addFriendText}>
+              Pending Request
+            </Text>
+          </TouchableOpacity>
+        );
+      }
+  
+      // If the current user is the receiver
       return (
         <>
           <TouchableOpacity style={styles.acceptButton} onPress={acceptFriendRequest}>
@@ -342,7 +400,8 @@ export default function UserProfilePage({ route }) {
         </>
       );
     }
-
+  
+    // Default button to send a friend request or remove a friend
     return (
       <TouchableOpacity
         style={styles.addFriendButton}
