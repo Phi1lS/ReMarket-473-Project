@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useContext } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { collection, onSnapshot, updateDoc, doc, addDoc, getDoc, query, where, getDocs, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { Swipeable } from 'react-native-gesture-handler';
 import { db } from '../../firebaseConfig';
 import { UserContext } from '../../UserContext'; // Ensure your Firebase config is correctly imported
-
 
 export default function NotificationsPage() {
   const { userProfile } = useContext(UserContext);
@@ -122,56 +122,55 @@ export default function NotificationsPage() {
     }
   };
 
-  const renderNotification = ({ item }) => (
-    <View style={styles.notificationItem}>
-      {/* Main Notification Content Based on Type */}
-      {item.type === 'purchase' && (
-        <>
-          <Text style={styles.notificationText}>
-            {item.buyerName} bought {item.quantity} of {item.itemName}
-          </Text>
-          {item.message && (
-            <Text style={styles.notificationMessage}>Message: {item.message}</Text>
+  const renderNotification = ({ item }) => {
+    const handleDelete = async () => {
+      try {
+        await deleteDoc(doc(db, 'users', userProfile.id, 'notifications', item.id));
+        setNotifications((prev) => prev.filter((notification) => notification.id !== item.id));
+      } catch (error) {
+        console.error('Error deleting notification:', error);
+      }
+    };
+  
+    const renderRightActions = () => (
+      <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
+        <Text style={styles.deleteButtonText}>Delete</Text>
+      </TouchableOpacity>
+    );
+  
+    return (
+      <Swipeable renderRightActions={renderRightActions}>
+        <View style={styles.notificationItem}>
+          {item.type === 'purchase' && (
+            <>
+              <Text style={styles.notificationText}>
+                {item.buyerName} bought {item.quantity} of {item.itemName}
+              </Text>
+              {item.message && (
+                <Text style={styles.notificationMessage}>Message: {item.message}</Text>
+              )}
+            </>
           )}
-        </>
-      )}
-      
-      {item.type === 'friendRequest' && (
-        <Text style={styles.notificationText}>
-          {item.senderName} has sent you a friend request.
-        </Text>
-      )}
   
-      {item.type === 'friendAccepted' && (
-        <Text style={styles.notificationText}>
-          You are now friends with {item.friendName}.
-        </Text>
-      )}
+          {item.type === 'friendRequest' && (
+            <Text style={styles.notificationText}>
+              {item.senderName} has sent you a friend request.
+            </Text>
+          )}
   
-      {/* Notification Date */}
-      <Text style={styles.notificationDate}>
-        {item.timestamp ? new Date(item.timestamp.seconds * 1000).toLocaleDateString() : 'Unknown Date'}
-      </Text>
+          {item.type === 'friendAccepted' && (
+            <Text style={styles.notificationText}>
+              You are now friends with {item.friendName}.
+            </Text>
+          )}
   
-      {/* Friend Request Actions */}
-      {item.type === 'friendRequest' && (
-        <View style={styles.friendRequestButtons}>
-          <TouchableOpacity
-            style={styles.acceptButton}
-            onPress={() => acceptFriendRequest(item)}
-          >
-            <Text style={styles.buttonText}>Accept</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.denyButton}
-            onPress={() => denyFriendRequest(item)}
-          >
-            <Text style={styles.buttonText}>Deny</Text>
-          </TouchableOpacity>
+          <Text style={styles.notificationDate}>
+            {item.timestamp ? new Date(item.timestamp.seconds * 1000).toLocaleDateString() : 'Unknown Date'}
+          </Text>
         </View>
-      )}
-    </View>
-  );
+      </Swipeable>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -250,5 +249,17 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 14,
+  },
+  deleteButton: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 80,
+    backgroundColor: 'red',
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+  deleteButtonText: {
+    color: '#fff',
+    fontSize: 16,
   },
 });
