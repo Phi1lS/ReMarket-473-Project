@@ -36,3 +36,7 @@ yarn-error.*
 
 # commands:
 remarketCmds.txt
+
+#account key
+spark_jobs/serviceAccountKey.json
+firebaseConfig.js
