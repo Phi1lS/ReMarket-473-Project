@@ -1,10 +1,9 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, explode
-from pyspark.sql.types import StructType, StructField, StringType, ArrayType, IntegerType, FloatType, TimestampType
+from pyspark.sql.functions import col, explode, trim, lower
+from pyspark.sql.types import StructType, StructField, StringType, ArrayType, IntegerType, FloatType
 from pyspark.sql import Row
 import firebase_admin
 from firebase_admin import credentials, firestore
-from datetime import datetime
 
 # Initialize Firebase Admin SDK
 cred = credentials.Certificate("serviceAccountKey.json")  # Replace with your Firebase service account key
@@ -14,6 +13,7 @@ db = firestore.client()
 # Initialize Spark Session
 spark = SparkSession.builder.appName("Recommendations").getOrCreate()
 
+
 def fetch_data_from_firestore():
     """Fetch users, purchases, and marketplace items from Firestore."""
     users_ref = db.collection("users")
@@ -21,20 +21,20 @@ def fetch_data_from_firestore():
     user_docs = users_ref.stream()
     marketplace_docs = marketplace_ref.stream()
 
-    user_data = []
-    purchase_data = []
-    marketplace_data = []
+    user_data, purchase_data, marketplace_data = [], [], []
 
+    # Fetch user and purchases data
     for user_doc in user_docs:
         user_id = user_doc.id
-       
-       # Fetch friends subcollection
+
+        # Fetch friends
         friends_ref = db.collection("users").document(user_id).collection("friends")
         friends_docs = friends_ref.stream()
         friends = [doc.to_dict().get("friendId") for doc in friends_docs]
-        
+
         user_data.append({"userId": user_id, "friends": friends})
 
+        # Fetch purchases
         purchases_ref = db.collection("users").document(user_id).collection("purchases")
         purchase_docs = purchases_ref.stream()
 
@@ -42,34 +42,34 @@ def fetch_data_from_firestore():
             purchase_dict = purchase_doc.to_dict()
             purchase_data.append({
                 "userId": user_id,
-                "itemId": purchase_doc.id,
+                "itemId": purchase_dict.get("itemId", ""),  # Extract the actual itemId field
                 "imageUrl": purchase_dict.get("imageUrl", ""),
                 "itemName": purchase_dict.get("itemName", ""),
-                "likeCount": float(purchase_dict.get("likeCount", 0)),  # Convert to float
+                "likeCount": float(purchase_dict.get("likeCount", 0)),
                 "likedBy": purchase_dict.get("likedBy", []),
                 "message": purchase_dict.get("message", ""),
-                "price": float(purchase_dict.get("price", 0.0)),  # Convert to float
-                "quantity": int(purchase_dict.get("quantity", 1)),  # Ensure integer
+                "price": float(purchase_dict.get("price", 0.0)),
+                "quantity": int(purchase_dict.get("quantity", 1)),
                 "timestamp": purchase_dict.get("timestamp").isoformat() if purchase_dict.get("timestamp") else None,
                 "userName": purchase_dict.get("userName", ""),
             })
 
+    # Fetch marketplace data using document names
     for item_doc in marketplace_docs:
         item_dict = item_doc.to_dict()
         marketplace_data.append({
-            "itemId": item_doc.id,
+            "id": item_doc.id,  # Use document name as id
             "category": item_dict.get("category", ""),
             "createdAt": item_dict.get("createdAt").isoformat() if item_dict.get("createdAt") else None,
             "description": item_dict.get("description", ""),
             "imageUrl": item_dict.get("imageUrl", ""),
-            "price": float(item_dict.get("price", 0.0)),  # Convert to float
-            "quantity": int(item_dict.get("quantity", 0)),  # Ensure integer
+            "price": float(item_dict.get("price", 0.0)),
+            "quantity": int(item_dict.get("quantity", 0)),
             "sellerAvatar": item_dict.get("sellerAvatar", ""),
             "sellerId": item_dict.get("sellerId", ""),
             "sellerName": item_dict.get("sellerName", ""),
         })
 
-    # Define schemas
     user_schema = StructType([
         StructField("userId", StringType(), True),
         StructField("friends", ArrayType(StringType()), True),
@@ -85,14 +85,14 @@ def fetch_data_from_firestore():
         StructField("message", StringType(), True),
         StructField("price", FloatType(), True),
         StructField("quantity", IntegerType(), True),
-        StructField("timestamp", StringType(), True),  # Converted to ISO 8601 string
+        StructField("timestamp", StringType(), True),
         StructField("userName", StringType(), True),
     ])
 
     marketplace_schema = StructType([
-        StructField("itemId", StringType(), True),
+        StructField("id", StringType(), True),
         StructField("category", StringType(), True),
-        StructField("createdAt", StringType(), True),  # Converted to ISO 8601 string
+        StructField("createdAt", StringType(), True),
         StructField("description", StringType(), True),
         StructField("imageUrl", StringType(), True),
         StructField("price", FloatType(), True),
@@ -102,43 +102,50 @@ def fetch_data_from_firestore():
         StructField("sellerName", StringType(), True),
     ])
 
-    # Convert to Spark DataFrames
     users_df = spark.createDataFrame([Row(**user) for user in user_data], schema=user_schema)
     purchases_df = spark.createDataFrame([Row(**purchase) for purchase in purchase_data], schema=purchase_schema)
     marketplace_df = spark.createDataFrame([Row(**marketplace) for marketplace in marketplace_data], schema=marketplace_schema)
 
     return users_df, purchases_df, marketplace_df
 
+
 def recommend_items_based_on_purchases(user_id, purchases_df, marketplace_df):
     """Recommend items based on the user's purchase history."""
-    # Get items purchased by the user
-    user_purchases = (
+    # Normalize user purchases for matching
+    normalized_user_purchases = (
         purchases_df.filter(col("userId") == user_id)
         .select("itemId")
-        .rdd.map(lambda row: row.itemId)
+        .rdd.map(lambda row: row.itemId.strip().lower())
         .collect()
     )
+    print(f"User Purchases (normalized itemId): {normalized_user_purchases}")
 
-    if not user_purchases:
+    if not normalized_user_purchases:
         print(f"No purchases found for user {user_id}")
         return []
 
-    print(f"User Purchases for user {user_id}: {user_purchases}")
+    # Create normalized column for marketplace `id`
+    marketplace_df = marketplace_df.withColumn("normalized_id", lower(trim(col("id"))))
 
-    # Debug: Show marketplace data
-    print("Marketplace data:")
-    marketplace_df.show(truncate=False)
+    # Match user purchases with marketplace items
+    purchased_items_info = marketplace_df.filter(
+        col("normalized_id").isin(normalized_user_purchases)
+    )
 
-    # Get categories of items the user purchased
+    # Log a concise summary of matching purchased items
+    purchased_count = purchased_items_info.count()
+    print(f"Matching Purchased Items Count: {purchased_count}")
+    if purchased_count > 0:
+        print("Sample Matching Purchased Items:")
+        purchased_items_info.select("id", "category", "description").show(5, truncate=False)
+
+    # Extract categories from purchased items
     user_purchase_categories = (
-        purchases_df.filter(col("userId") == user_id)
-        .join(marketplace_df, "itemId")
-        .select("category")
+        purchased_items_info.select("category")
         .distinct()
         .rdd.map(lambda row: row.category)
         .collect()
     )
-
     print(f"User Purchase Categories: {user_purchase_categories}")
 
     if not user_purchase_categories:
@@ -148,19 +155,25 @@ def recommend_items_based_on_purchases(user_id, purchases_df, marketplace_df):
     # Recommend items from the same categories that the user has not purchased
     recommended_items = (
         marketplace_df.filter(col("category").isin(user_purchase_categories))
-        .filter(~col("itemId").isin(user_purchases))  # Exclude already purchased items
-        .select("itemId", "description")  # Use 'description' instead of 'itemName'
+        .filter(~col("normalized_id").isin(normalized_user_purchases))
+        .select("*")  # Select all fields to return full details
         .distinct()
-        .rdd.map(lambda row: row.description)
+        .rdd.map(lambda row: row.asDict())  # Convert rows to dictionaries
         .collect()
     )
 
-    print(f"Recommended Items: {recommended_items}")
+    # Include original `id` and other fields from the marketplace
+    print(f"Recommended Items Count: {len(recommended_items)}")
+    if recommended_items:
+        print("Sample Recommended Items:")
+        for item in recommended_items[:5]:  # Print a sample of 5 items
+            print({k: item[k] for k in ('id', 'category', 'description')})
 
     return recommended_items
 
-def recommend_items_bought_by_friends(user_id, users_df, purchases_df):
-    """Generate a list of items bought by friends of the given user."""
+
+def recommend_items_bought_by_friends(user_id, users_df, purchases_df, marketplace_df):
+    """Recommend full marketplace items bought by friends that the user hasn't purchased."""
     # Get the list of friends for the user
     friends_list = (
         users_df.filter(col("userId") == user_id)
@@ -168,55 +181,71 @@ def recommend_items_bought_by_friends(user_id, users_df, purchases_df):
         .rdd.map(lambda row: row.friendId)
         .collect()
     )
-
-    print(f"Friends List for user {user_id}: {friends_list}")
+    print(f"Friends List: {friends_list}")
 
     if not friends_list:
+        print(f"No friends found for user {user_id}")
         return []
 
-    # Get purchases by friends
-    friends_purchases = (
-        purchases_df.filter(col("userId").isin(friends_list))
-        .select("itemId", "itemName")
-        .distinct()
-        .rdd.map(lambda row: row.itemName)
+    # Get normalized `itemId` for user's purchases
+    user_purchases = (
+        purchases_df.filter(col("userId") == user_id)
+        .select("itemId")
+        .rdd.map(lambda row: row.itemId.strip().lower())  # Normalize for matching
         .collect()
     )
+    print(f"User Purchases (normalized itemId): {user_purchases}")
 
-    print(f"Purchases by Friends: {friends_purchases}")
+    # Get items purchased by friends
+    friends_purchases = (
+        purchases_df.filter(col("userId").isin(friends_list))
+        .select("itemId")
+        .distinct()
+        .rdd.map(lambda row: row.itemId.strip().lower())  # Normalize for matching
+        .collect()
+    )
+    print(f"Normalized Purchases by Friends: {friends_purchases}")
 
-    return list(set(friends_purchases))  # Return unique items
+    if not friends_purchases:
+        print(f"No purchases found for friends of user {user_id}")
+        return []
+
+    # Normalize `id` in marketplace_df for matching
+    marketplace_df = marketplace_df.withColumn("normalized_id", lower(trim(col("id"))))
+
+    # Filter items bought by friends but not by the user
+    filtered_items = marketplace_df.filter(
+        (col("normalized_id").isin(friends_purchases)) & (~col("normalized_id").isin(user_purchases))
+    ).select("*").distinct()
+
+    # Convert the result to a list of dictionaries
+    filtered_items_list = filtered_items.rdd.map(lambda row: row.asDict()).collect()
+
+    # Log concise summary
+    print(f"Filtered Items Bought by Friends Count: {len(filtered_items_list)}")
+    if filtered_items_list:
+        print("Sample Items Bought by Friends (excluding user's purchases):")
+        for item in filtered_items_list[:5]:  # Print a sample of 5 items
+            print({k: item[k] for k in ('id', 'category', 'description')})
+
+    return filtered_items_list
+
 
 def write_recommendations_to_firestore(user_id, recommendations, collection_name):
-    """Write the recommendations to Firestore under a specific user's collection."""
     doc_ref = db.collection(collection_name).document(user_id)
     doc_ref.set({"recommendedItems": recommendations})
 
+
 def main(user_id=None):
-    # Fetch data from Firestore
     users_df, purchases_df, marketplace_df = fetch_data_from_firestore()
 
     if user_id:
-        # "Bought by Friends" recommendations
-        recommendations_by_friends = recommend_items_bought_by_friends(user_id, users_df, purchases_df)
-        print(f"Bought by Friends for user {user_id}: {recommendations_by_friends}")
-        write_recommendations_to_firestore(user_id, recommendations_by_friends, "friendsRecommendations")
-
-        # "Recommended for You" recommendations
+        recommendations_by_friends = recommend_items_bought_by_friends(user_id, users_df, purchases_df, marketplace_df)
         recommendations_for_user = recommend_items_based_on_purchases(user_id, purchases_df, marketplace_df)
-        print(f"Recommended for You for user {user_id}: {recommendations_for_user}")
-        write_recommendations_to_firestore(user_id, recommendations_for_user, "userRecommendations")
-    else:
-        # Process all users
-        all_users = users_df.select("userId").distinct().rdd.map(lambda row: row.userId).collect()
-        for user_id in all_users:
-            recommendations_by_friends = recommend_items_bought_by_friends(user_id, users_df, purchases_df)
-            print(f"Bought by Friends for user {user_id}: {recommendations_by_friends}")
-            write_recommendations_to_firestore(user_id, recommendations_by_friends, "friendsRecommendations")
 
-            recommendations_for_user = recommend_items_based_on_purchases(user_id, purchases_df, marketplace_df)
-            print(f"Recommended for You for user {user_id}: {recommendations_for_user}")
-            write_recommendations_to_firestore(user_id, recommendations_for_user, "userRecommendations")
+        write_recommendations_to_firestore(user_id, recommendations_by_friends, "friendsRecommendations")
+        write_recommendations_to_firestore(user_id, recommendations_for_user, "userRecommendations")
+
 
 if __name__ == "__main__":
     import sys
