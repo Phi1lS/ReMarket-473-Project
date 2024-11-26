@@ -173,7 +173,7 @@ def recommend_items_based_on_purchases(user_id, purchases_df, marketplace_df):
 
 
 def recommend_items_bought_by_friends(user_id, users_df, purchases_df, marketplace_df):
-    """Recommend full marketplace items bought by friends that the user hasn't purchased."""
+    """Recommend full marketplace items bought by friends that the user hasn't purchased, ranked by popularity."""
     # Get the list of friends for the user
     friends_list = (
         users_df.filter(col("userId") == user_id)
@@ -199,37 +199,40 @@ def recommend_items_bought_by_friends(user_id, users_df, purchases_df, marketpla
     # Get items purchased by friends
     friends_purchases = (
         purchases_df.filter(col("userId").isin(friends_list))
-        .select("itemId")
-        .distinct()
-        .rdd.map(lambda row: row.itemId.strip().lower())  # Normalize for matching
-        .collect()
+        .groupBy("itemId")
+        .count()
+        .withColumnRenamed("count", "purchaseCount")
     )
-    print(f"Normalized Purchases by Friends: {friends_purchases}")
 
-    if not friends_purchases:
+    # Normalize `itemId` for ranking and matching
+    friends_purchases = friends_purchases.withColumn("normalized_itemId", lower(trim(col("itemId"))))
+
+    if friends_purchases.count() == 0:
         print(f"No purchases found for friends of user {user_id}")
         return []
 
     # Normalize `id` in marketplace_df for matching
     marketplace_df = marketplace_df.withColumn("normalized_id", lower(trim(col("id"))))
 
-    # Filter items bought by friends but not by the user
-    filtered_items = marketplace_df.filter(
-        (col("normalized_id").isin(friends_purchases)) & (~col("normalized_id").isin(user_purchases))
-    ).select("*").distinct()
+    # Join marketplace with friends' purchases
+    ranked_items = (
+        marketplace_df.join(friends_purchases, marketplace_df["normalized_id"] == friends_purchases["normalized_itemId"])
+        .filter(~col("normalized_id").isin(user_purchases))  # Exclude items already purchased by the user
+        .select("id", "category", "description", "purchaseCount", "imageUrl", "price", "quantity", "sellerName")
+        .orderBy(col("purchaseCount").desc())  # Rank by purchase count
+    )
 
     # Convert the result to a list of dictionaries
-    filtered_items_list = filtered_items.rdd.map(lambda row: row.asDict()).collect()
+    ranked_items_list = ranked_items.rdd.map(lambda row: row.asDict()).collect()
 
     # Log concise summary
-    print(f"Filtered Items Bought by Friends Count: {len(filtered_items_list)}")
-    if filtered_items_list:
-        print("Sample Items Bought by Friends (excluding user's purchases):")
-        for item in filtered_items_list[:5]:  # Print a sample of 5 items
-            print({k: item[k] for k in ('id', 'category', 'description')})
+    print(f"Ranked Items Bought by Friends Count: {len(ranked_items_list)}")
+    if ranked_items_list:
+        print("Top Ranked Items Bought by Friends:")
+        for item in ranked_items_list[:5]:  # Print a sample of top 5 items
+            print({k: item[k] for k in ('id', 'category', 'description', 'purchaseCount')})
 
-    return filtered_items_list
-
+    return ranked_items_list
 
 def write_recommendations_to_firestore(user_id, recommendations, collection_name):
     doc_ref = db.collection(collection_name).document(user_id)
