@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native'; // Import useNavigation
@@ -60,7 +60,10 @@ export default function ItemPage({ route }) {
   const isOutOfStock = item.quantity <= 0;
 
   return (
-    <ScrollView contentContainerStyle={styles.scrollContainer}>
+    <ScrollView contentContainerStyle={[
+        Platform.OS === 'web' && styles.scrollContainer // Style applied only on web
+      ]}
+    >
       <View style={styles.container}>
         {/* Item Image */}
         <Image source={{ uri: itemImageUrl }} style={styles.itemImage} />

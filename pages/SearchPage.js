@@ -201,7 +201,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-    paddingTop: Platform.OS === 'ios' ? 80 : StatusBar.currentHeight + 15,
+    paddingTop: Platform.OS === 'web' 
+  ? 40 
+  : Platform.OS === 'ios' 
+  ? 80 
+  : StatusBar.currentHeight + 15,
     paddingHorizontal: 20,
   },
   searchBarContainer: {
