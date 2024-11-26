@@ -605,7 +605,7 @@ const styles = StyleSheet.create({
   purchaseItem: {
     flexDirection: 'row',
     marginBottom: 10,
-    alignSelf: 'center',
+    alignItems: 'center',
   },
   purchaseImage: {
     width: 80,

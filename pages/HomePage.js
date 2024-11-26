@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f9f9f9',
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingTop: Platform.OS === 'ios' ? 60 : Platform.OS === 'android' ? 40 : 0, // No padding for web
   },
   topBarContainer: {
     width: '100%',
