@@ -135,7 +135,15 @@ export default function ItemDetailScreen({ route }) {
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.purchaseTop}>
           <TouchableOpacity onPress={() => navigation.navigate('UserProfilePage', { userId: item.friendId })}>
-            <Avatar.Image size={50} source={item.friendProfilePic ? { uri: item.friendProfilePic } : avatarPlaceholder} style={styles.purchaseAvatar} />
+          <Avatar.Image
+            size={50}
+            source={
+              typeof item.friendProfilePic === 'string' && item.friendProfilePic.trim()
+                ? { uri: item.friendProfilePic }
+                : avatarPlaceholder
+            }
+            style={styles.purchaseAvatar}
+          />
           </TouchableOpacity>
           <View style={styles.purchaseDetails}>
             <TouchableOpacity onPress={() => navigation.navigate('UserProfilePage', { userId: item.friendId })}>
@@ -163,11 +171,15 @@ export default function ItemDetailScreen({ route }) {
         {comments.map((comment) => (
           <View key={comment.id} style={styles.commentRow}>
             <TouchableOpacity onPress={() => navigation.navigate('UserProfilePage', { userId: comment.userId })}>
-              <Avatar.Image
-                size={40}
-                source={typeof comment.profilePic === 'string' ? { uri: comment.profilePic } : avatarPlaceholder}
-                style={styles.commentAvatar}
-              />
+            <Avatar.Image
+              size={40}
+              source={
+                typeof comment.profilePic === 'string' && comment.profilePic.trim()
+                  ? { uri: comment.profilePic }
+                  : avatarPlaceholder
+              }
+              style={styles.commentAvatar}
+            />
             </TouchableOpacity>
             <View style={styles.commentDetails}>
               <Text style={styles.commentName}>{comment.name}</Text>
