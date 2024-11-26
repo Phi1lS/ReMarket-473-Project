@@ -131,7 +131,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
     paddingHorizontal: 10,
-    paddingTop: Platform.OS === 'ios' ? 60 : StatusBar.currentHeight + 15,
+    paddingTop: Platform.OS === 'web' 
+    ? 40 
+    : Platform.OS === 'ios' 
+    ? 80 
+    : StatusBar.currentHeight + 15,
   },
   headerText: {
     fontSize: 24,
