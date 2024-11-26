@@ -122,7 +122,7 @@ export default function ItemPage({ route }) {
 
 const styles = StyleSheet.create({
   scrollContainer: {
-
+    flex: 1
   },
   container: {
     flex: 1,
