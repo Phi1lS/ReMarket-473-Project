@@ -21,6 +21,8 @@ export const UserProvider = ({ children }) => {
   const [userLoading, setUserLoading] = useState(true);
   const [items, setItems] = useState([]);
   const [cart, setCart] = useState([]);
+  const [viewedByFriends, setViewedByFriends] = useState([]);
+  const [userRecommendations, setUserRecommendations] = useState([]);
 
   useEffect(() => {
     let unsubscribeAuth;
@@ -36,6 +38,8 @@ export const UserProvider = ({ children }) => {
         setUserLoading(true);
         fetchUserProfile(user.uid);
         loadCart(user.uid);
+        fetchFriendsRecommendations(user.uid);
+        fetchUserRecommendations(user.uid);
 
         const addressesRef = collection(db, 'users', user.uid, 'shippingAddresses');
         unsubscribeAddressListener = onSnapshot(addressesRef, (querySnapshot) => {
@@ -107,6 +111,74 @@ export const UserProvider = ({ children }) => {
     }
   };
 
+  const fetchFriendsRecommendations = (userId) => {
+    const recommendationsRef = doc(db, 'friendsRecommendations', userId);
+  
+    // Set up a real-time listener
+    return onSnapshot(
+      recommendationsRef,
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const recommendedItems = docSnap.data().recommendedItems || [];
+  
+          // Fetch full item data from marketplace for real-time updates
+          const fetchFullItems = async () => {
+            const fullItems = [];
+            for (const item of recommendedItems) {
+              const itemRef = doc(db, 'marketplace', item.id);
+              const itemSnap = await getDoc(itemRef);
+              if (itemSnap.exists()) {
+                fullItems.push({ id: itemSnap.id, ...itemSnap.data() });
+              }
+            }
+            setViewedByFriends(fullItems);
+          };
+  
+          fetchFullItems();
+        } else {
+          setViewedByFriends([]);
+        }
+      },
+      (error) => {
+        console.error('Error listening to friendsRecommendations:', error);
+      }
+    );
+  };
+
+  const fetchUserRecommendations = (userId) => {
+    const recommendationsRef = doc(db, 'userRecommendations', userId);
+
+    // Set up a real-time listener
+    return onSnapshot(
+      recommendationsRef,
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const recommendedItems = docSnap.data().recommendedItems || [];
+
+          // Fetch full item data from marketplace for real-time updates
+          const fetchFullItems = async () => {
+            const fullItems = [];
+            for (const item of recommendedItems) {
+              const itemRef = doc(db, 'marketplace', item.id);
+              const itemSnap = await getDoc(itemRef);
+              if (itemSnap.exists()) {
+                fullItems.push({ id: itemSnap.id, ...itemSnap.data() });
+              }
+            }
+            setUserRecommendations(fullItems);
+          };
+
+          fetchFullItems();
+        } else {
+          setUserRecommendations([]);
+        }
+      },
+      (error) => {
+        console.error('Error listening to userRecommendations:', error);
+      }
+    );
+  };
+
   const resetUserState = () => {
     setUserProfile({
       id: '',
@@ -123,6 +195,8 @@ export const UserProvider = ({ children }) => {
     });
     setItems([]);
     setCart([]);
+    setViewedByFriends([]);
+    setUserRecommendations([]);
     setUserLoading(false);
   };
 
@@ -320,6 +394,8 @@ export const UserProvider = ({ children }) => {
       toggleLike,
       addComment,
       sendFriendRequest,
+      viewedByFriends,
+      userRecommendations,
     }}>
       {children}
     </UserContext.Provider>

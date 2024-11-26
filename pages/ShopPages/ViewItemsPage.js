@@ -7,7 +7,7 @@ import { storage } from '../../firebaseConfig'; // Import Firebase storage confi
 import { MaterialIcons } from '@expo/vector-icons'; // Import icons
 
 export default function ViewItemsPage() {
-  const { items } = useContext(UserContext); // Access items from UserContext
+  const { items, viewedByFriends, userRecommendations } = useContext(UserContext); // Access items from UserContext
   const navigation = useNavigation();
   const [itemsWithImages, setItemsWithImages] = useState([]); // State to hold items with their image URLs
   const [sortOption, setSortOption] = useState('Recently Posted'); // State for sorting option
@@ -39,18 +39,25 @@ export default function ViewItemsPage() {
     fetchItemsWithImages();
   }, [items]);
 
+  // Sorting function to sort items by createdAt timestamp
+  const sortItemsByDate = (items) => {
+    return items.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
+  };
+  
   // Sort items based on the selected sort option
   const sortedItems = () => {
     switch (sortOption) {
       case 'Viewed By Friends':
-        // Implement logic for sorting by viewed items
-        return itemsWithImages; // Placeholder: return original order for now
+        return viewedByFriends.map((friendItem) =>
+          itemsWithImages.find((item) => item.id === friendItem.id)
+        ).filter(Boolean); // Remove undefined items
       case 'Recommended for You':
-        // Implement logic for sorting by recommended items
-        return itemsWithImages; // Placeholder: return original order for now
+        return userRecommendations.map((recommendationItem) =>
+          itemsWithImages.find((item) => item.id === recommendationItem.id)
+        ).filter(Boolean); // Remove undefined items
       case 'Recently Posted':
       default:
-        return sortItemsByDate(itemsWithImages); // Sort by date
+        return sortItemsByDate(itemsWithImages);
     }
   };
 
@@ -58,17 +65,17 @@ export default function ViewItemsPage() {
   const displayedItems = sortedItems().slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   
   // Calculate total number of pages
-  const totalPages = Math.ceil(itemsWithImages.length / itemsPerPage);
+  const totalPages = Math.ceil(sortedItems().length / itemsPerPage);
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>All Items</Text>
-
+  
       {/* Sort Dropdown Modal */}
       <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.sortContainer}>
         <Text style={styles.sortLabel}>Sort By: {sortOption}</Text>
       </TouchableOpacity>
-
+  
       <Modal
         animationType="slide"
         transparent={true}
@@ -85,6 +92,7 @@ export default function ViewItemsPage() {
                 onPress={() => {
                   setSortOption(option);
                   setModalVisible(false);
+                  setCurrentPage(1); // Reset to the first page on sort option change
                 }}
               >
                 <Text style={styles.modalOptionText}>{option}</Text>
@@ -96,50 +104,55 @@ export default function ViewItemsPage() {
           </View>
         </View>
       </Modal>
-
-      <FlatList
-        data={displayedItems}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.itemContainer}
-            onPress={() => navigation.navigate('ItemPage', { item })}
-          >
-            <Image source={{ uri: item.imageUrl }} style={styles.itemImage} />
-            <Text style={styles.itemName}>{item.description}</Text>
-          </TouchableOpacity>
-        )}
-        ListFooterComponent={
-          // Pagination Controls at the bottom of the list
-          <View style={styles.paginationContainer}>
-            <TouchableOpacity
-              style={styles.pageButton}
-              onPress={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-            >
-              <MaterialIcons name="arrow-back-ios" size={24} color="white" />
-            </TouchableOpacity>
-
-            <Text style={styles.pageInfo}>Page {currentPage} of {totalPages}</Text>
-
-            <TouchableOpacity
-              style={styles.pageButton}
-              onPress={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages}
-            >
-              <MaterialIcons name="arrow-forward-ios" size={24} color="white" />
-            </TouchableOpacity>
-          </View>
-        }
-      />
+  
+      {/* FlatList and Fallback Message */}
+      {displayedItems.length > 0 ? (
+        <View style={styles.listWrapper}>
+          <FlatList
+            data={displayedItems}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.itemContainer}
+                onPress={() => navigation.navigate('ItemPage', { item })}
+              >
+                <Image source={{ uri: item.imageUrl }} style={styles.itemImage} />
+                <Text style={styles.itemName}>{item.description}</Text>
+              </TouchableOpacity>
+            )}
+          />
+  
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <View style={styles.paginationContainer}>
+              <TouchableOpacity
+                style={[styles.pageButton, currentPage === 1 && styles.disabledButton]}
+                onPress={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+              >
+                <MaterialIcons name="arrow-back-ios" size={24} color={currentPage === 1 ? 'gray' : 'white'} />
+              </TouchableOpacity>
+  
+              <Text style={styles.pageInfo}>Page {currentPage} of {totalPages}</Text>
+  
+              <TouchableOpacity
+                style={[styles.pageButton, currentPage === totalPages && styles.disabledButton]}
+                onPress={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+              >
+                <MaterialIcons name="arrow-forward-ios" size={24} color={currentPage === totalPages ? 'gray' : 'white'} />
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      ) : (
+        <View style={styles.noItemsWrapper}>
+          <Text style={styles.noItemsText}>No items available in this category</Text>
+        </View>
+      )}
     </View>
   );
 }
-
-// Sorting function to sort items by createdAt timestamp
-const sortItemsByDate = (items) => {
-  return items.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
-};
 
 const styles = StyleSheet.create({
   container: {
@@ -245,5 +258,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     color: '#0070BA', // Color to match the theme
+  },
+  noItemsText: {
+    fontSize: 16,
+    color: '#888',
+    textAlign: 'center',
+    marginVertical: 250,
+  },
+  listWrapper: {
+    flex: 1, // Ensures the FlatList takes available space
+    justifyContent: 'space-between', // Keeps pagination at the bottom
   },
 });
