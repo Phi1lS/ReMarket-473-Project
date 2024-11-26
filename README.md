@@ -2,6 +2,11 @@
 
 ReMarket is a modern, interactive social marketplace application designed for web and mobile platforms. Users can explore items for sale, view recommendations, and connect with friends, all while enjoying a seamless and visually appealing interface.
 
+[Web App](https://remarket-a69bd.web.app)
+[Expo Go App](exp://u.expo.dev/80c43a8d-5c6a-4fa7-baad-25e789fc3459/group/128d1aa0-939c-4882-a735-4aa583057b60)
+
+Last updated: 11.26.2024
+
 ## Features
 
 - **Browse and Search:** Explore items listed by sellers, filter by categories, and search for specific items.
