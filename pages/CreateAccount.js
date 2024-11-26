@@ -12,8 +12,9 @@ export default function CreateAccountScreen({ navigation }) {
   const [lastName, setLastName] = useState('');
   const [username, setUsername] = useState(''); // New field for username
 
-  const scheme = useColorScheme();  // Detect dark mode
-  const isDarkMode = scheme === 'dark';  // Determine if dark mode is active
+  //const scheme = useColorScheme();  // Detect dark mode
+  //const isDarkMode = scheme === 'dark';  // Determine if dark mode is active
+  isDarkMode = false;
 
   // Ensure username starts with "@"
   const handleUsernameChange = (text) => {

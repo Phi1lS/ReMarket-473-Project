@@ -8,8 +8,9 @@ export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   
-  const scheme = useColorScheme(); // Detect dark mode
-  const isDarkMode = scheme === 'dark'; // Check if it's dark mode
+  //const scheme = useColorScheme(); // Detect dark mode
+  //const isDarkMode = scheme === 'dark'; // Check if it's dark mode
+  isDarkMode = false;
 
   const handleLogin = () => {
     signInWithEmailAndPassword(auth, email, password)
