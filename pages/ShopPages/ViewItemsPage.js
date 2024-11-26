@@ -48,13 +48,13 @@ export default function ViewItemsPage() {
   const sortedItems = () => {
     switch (sortOption) {
       case 'Viewed By Friends':
-        return itemsWithImages.filter((item) =>
-          viewedByFriends.some((friendItem) => friendItem.id === item.id)
-        );
+        return viewedByFriends.map((friendItem) =>
+          itemsWithImages.find((item) => item.id === friendItem.id)
+        ).filter(Boolean); // Remove undefined items
       case 'Recommended for You':
-        return itemsWithImages.filter((item) =>
-          userRecommendations.some((recommendationItem) => recommendationItem.id === item.id)
-        );
+        return userRecommendations.map((recommendationItem) =>
+          itemsWithImages.find((item) => item.id === recommendationItem.id)
+        ).filter(Boolean); // Remove undefined items
       case 'Recently Posted':
       default:
         return sortItemsByDate(itemsWithImages);
