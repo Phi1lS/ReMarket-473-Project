@@ -40,14 +40,15 @@ ReMarket is a modern, interactive social marketplace application designed for we
 3. Set up Firebase:
 	•	Create a Firebase project in the Firebase Console.
 	•	Add your firebaseConfig in firebaseConfig.js:
-    export const firebaseConfig = {
+    
+    `export const firebaseConfig = {
         apiKey: "YOUR_API_KEY",
         authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
         projectId: "YOUR_PROJECT_ID",
         storageBucket: "YOUR_PROJECT_ID.appspot.com",
         messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
         appId: "YOUR_APP_ID",
-    };
+    };`
 
 4. Start the development server:
     npx expo start
