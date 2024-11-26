@@ -331,9 +331,9 @@ def recommend_items_hybrid(user_id, users_df, purchases_df, marketplace_df):
     # Union the two recommendation DataFrames
     hybrid_recommendations = user_based_recommendations.unionByName(friend_based_recommendations).distinct()
     
-    # Order the recommendations: user-based first, then friend-based
+    # Corrected ordering: order by 'source' descending to have 'user' recommendations first
     hybrid_recommendations = hybrid_recommendations.orderBy(
-        col("source").asc(),  # 'user' comes before 'friend' alphabetically
+        col("source").desc(),  # 'user' comes after 'friend' alphabetically, so descending order puts 'user' first
         col("purchaseCount").desc()
     ).limit(10)
     
@@ -348,6 +348,7 @@ def recommend_items_hybrid(user_id, users_df, purchases_df, marketplace_df):
             print({k: item[k] for k in ('id', 'category', 'description', 'purchaseCount', 'source')})
     
     return recommendations_list
+
 
 
 
