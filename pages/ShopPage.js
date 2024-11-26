@@ -13,7 +13,7 @@ const categories = [
 
 export default function ShopPage() {
   const navigation = useNavigation();
-  const { items } = useContext(UserContext);
+  const { items, viewedByFriends, userRecommendations } = useContext(UserContext);
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredItems, setFilteredItems] = useState([]);
   const [itemImages, setItemImages] = useState({}); 
@@ -22,7 +22,9 @@ export default function ShopPage() {
   useEffect(() => {
     setFilteredItems(items);
     fetchItemImages(items); 
-  }, [items]);
+    fetchItemImages(viewedByFriends);
+    fetchItemImages(userRecommendations);
+  }, [items, viewedByFriends]);
 
   const fetchItemImages = async (items) => {
     const imageMap = {};
@@ -73,27 +75,31 @@ export default function ShopPage() {
   const renderItemsRow = (title, data) => (
     <View style={styles.itemSection}>
       <Text style={styles.sectionTitle}>{title}</Text>
-      <FlatList
-        horizontal
-        data={data}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.itemContainer}
-            onPress={() => navigation.navigate('ItemPage', { item })}
-          >
-            {loadingImages[item.id] ? (
-              <ActivityIndicator size="small" color="#0070BA" /> 
-            ) : itemImages[item.id] ? (
-              <Image source={{ uri: itemImages[item.id] }} style={styles.itemImage} />
-            ) : (
-              <View style={styles.emptyImagePlaceholder} />
-            )}
-            <Text style={styles.itemName}>{item.description}</Text>
-          </TouchableOpacity>
-        )}
-        showsHorizontalScrollIndicator={false}
-      />
+      {data.length > 0 ? (
+        <FlatList
+          horizontal
+          data={data}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.itemContainer}
+              onPress={() => navigation.navigate('ItemPage', { item })}
+            >
+              {loadingImages[item.id] ? (
+                <ActivityIndicator size="small" color="#0070BA" />
+              ) : itemImages[item.id] ? (
+                <Image source={{ uri: itemImages[item.id] }} style={styles.itemImage} />
+              ) : (
+                <View style={styles.emptyImagePlaceholder} />
+              )}
+              <Text style={styles.itemName}>{item.description}</Text>
+            </TouchableOpacity>
+          )}
+          showsHorizontalScrollIndicator={false}
+        />
+      ) : (
+        <Text style={styles.noItemsText}>No items available in this category</Text>
+      )}
     </View>
   );
 
@@ -138,8 +144,8 @@ export default function ShopPage() {
         ) : (
           <>
             {renderItemsRow('Recently Posted', displayedItems)}
-            {renderItemsRow('Viewed by Friends', displayedItems)}
-            {renderItemsRow('Recommended for You', displayedItems)}
+            {renderItemsRow('Viewed by Friends', viewedByFriends)}
+            {renderItemsRow('Recommended for You', userRecommendations)}
           </>
         )}
 
@@ -161,7 +167,6 @@ export default function ShopPage() {
     </View>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: {
@@ -268,5 +273,11 @@ const styles = StyleSheet.create({
   viewAllText: {
     color: '#fff',
     fontSize: 16,
+  },
+  noItemsText: {
+    fontSize: 16,
+    color: '#888',
+    textAlign: 'left',
+    marginVertical: 15,
   },
 });

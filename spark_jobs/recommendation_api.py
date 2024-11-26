@@ -127,6 +127,9 @@ def recommend_items_based_on_purchases(user_id, purchases_df, marketplace_df):
     # Create normalized column for marketplace `id`
     marketplace_df = marketplace_df.withColumn("normalized_id", lower(trim(col("id"))))
 
+    # Filter out items being sold by the user
+    marketplace_df = marketplace_df.filter(col("sellerId") != user_id)
+
     # Match user purchases with marketplace items
     purchased_items_info = marketplace_df.filter(
         col("normalized_id").isin(normalized_user_purchases)
@@ -213,6 +216,10 @@ def recommend_items_bought_by_friends(user_id, users_df, purchases_df, marketpla
 
     # Normalize `id` in marketplace_df for matching
     marketplace_df = marketplace_df.withColumn("normalized_id", lower(trim(col("id"))))
+
+    # Filter out items sold by the user
+    user_items = marketplace_df.filter(col("sellerId") == user_id).select("normalized_id").rdd.map(lambda row: row.normalized_id).collect()
+    marketplace_df = marketplace_df.filter(~col("normalized_id").isin(user_items))
 
     # Join marketplace with friends' purchases
     ranked_items = (
