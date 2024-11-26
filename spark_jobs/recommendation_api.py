@@ -277,6 +277,7 @@ def recommend_items_hybrid(user_id, users_df, purchases_df, marketplace_df):
         .select("id", "category", "description", "price", "sellerName", "imageUrl", "quantity")
         .distinct()
         .withColumn("purchaseCount", lit(0))  # Add purchaseCount column with default value 0
+        .withColumn("source", lit("user"))    # Add source column
     )
     
     print(f"User-based Recommendations Count: {user_based_recommendations.count()}")
@@ -289,7 +290,7 @@ def recommend_items_hybrid(user_id, users_df, purchases_df, marketplace_df):
         .select("friendId")
     )
     
-    friends = friends_list.collect()
+    friends = [row.friendId for row in friends_list.collect()]
     print(f"Friends List: {friends}")
     
     if len(friends) > 0:
@@ -317,7 +318,7 @@ def recommend_items_hybrid(user_id, users_df, purchases_df, marketplace_df):
                 on=marketplace_df["normalized_id"] == friends_purchases["normalized_itemId"]
             )
             .select("id", "category", "description", "price", "sellerName", "imageUrl", "quantity", "purchaseCount")
-            .orderBy(col("purchaseCount").desc())
+            .withColumn("source", lit("friend"))  # Add source column
             .distinct()
         )
     else:
@@ -330,8 +331,11 @@ def recommend_items_hybrid(user_id, users_df, purchases_df, marketplace_df):
     # Union the two recommendation DataFrames
     hybrid_recommendations = user_based_recommendations.unionByName(friend_based_recommendations).distinct()
     
-    # Optionally, order by purchaseCount and limit the number of recommendations
-    hybrid_recommendations = hybrid_recommendations.orderBy(col("purchaseCount").desc()).limit(10)
+    # Order the recommendations: user-based first, then friend-based
+    hybrid_recommendations = hybrid_recommendations.orderBy(
+        col("source").asc(),  # 'user' comes before 'friend' alphabetically
+        col("purchaseCount").desc()
+    ).limit(10)
     
     print(f"Hybrid Recommendations Count: {hybrid_recommendations.count()}")
     
@@ -341,9 +345,10 @@ def recommend_items_hybrid(user_id, users_df, purchases_df, marketplace_df):
     if recommendations_list:
         print("Hybrid Recommendations:")
         for item in recommendations_list:
-            print({k: item[k] for k in ('id', 'category', 'description', 'purchaseCount')})
+            print({k: item[k] for k in ('id', 'category', 'description', 'purchaseCount', 'source')})
     
     return recommendations_list
+
 
 
 
