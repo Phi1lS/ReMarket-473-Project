@@ -226,6 +226,11 @@ function SellingStack() {
         component={ItemPage} 
         options={{ title: 'Item Details' }} 
       />
+      <Stack.Screen 
+        name="CategoryPage" 
+        component={CategoryPage} 
+        options={{ title: '' }} 
+      />
     </Stack.Navigator>
   );
 }
