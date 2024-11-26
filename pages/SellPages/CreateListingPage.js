@@ -161,9 +161,16 @@ export default function CreateListingPage({ navigation }) {
             style={styles.input}
             placeholder="Item Name"
             value={description}
-            onChangeText={setDescription}
+            onChangeText={(text) => {
+              if (text.length <= 30) {
+                setDescription(text);
+              } else {
+                Alert.alert('Character Limit Exceeded', 'Description must be 30 characters or less.');
+              }
+            }}
             placeholderTextColor="#888"
           />
+          <Text style={styles.characterCount}>{description.length}/30</Text>
 
            <TextInput
             style={styles.input}
@@ -299,5 +306,11 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  characterCount: {
+    fontSize: 12,
+    color: '#888',
+    marginBottom: 10,
+    textAlign: 'right', // Align to the right of the input box
   },
 });
