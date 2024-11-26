@@ -284,7 +284,13 @@ export default function UserProfilePage({ route }) {
         return purchase;
       })
     );
-    setPurchasesWithImages(purchasesWithImagesList);
+  
+    // Sort purchases by timestamp in descending order
+    const sortedPurchases = purchasesWithImagesList.sort((a, b) => {
+      return b.timestamp?.seconds - a.timestamp?.seconds;
+    });
+  
+    setPurchasesWithImages(sortedPurchases);
   };
 
   useEffect(() => {
