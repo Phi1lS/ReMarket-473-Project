@@ -241,6 +241,112 @@ def recommend_items_bought_by_friends(user_id, users_df, purchases_df, marketpla
 
     return ranked_items_list
 
+
+    
+def recommend_items_hybrid(user_id, users_df, purchases_df, marketplace_df):
+    """Hybrid recommendation based on user's past purchases and items bought by friends."""
+    from pyspark.sql.functions import col, lower, trim, explode, lit
+    
+    # Step 1: Normalize user purchases and get purchased item categories
+    user_purchases = purchases_df.filter(col("userId") == user_id).select("itemId")
+    normalized_user_purchases = user_purchases.withColumn("normalized_itemId", lower(trim(col("itemId"))))
+    user_purchased_items = normalized_user_purchases.select("normalized_itemId").distinct()
+
+    # Get categories of items the user has purchased
+    purchased_categories = (
+        marketplace_df.withColumn("normalized_id", lower(trim(col("id"))))
+        .join(user_purchased_items, col("normalized_id") == col("normalized_itemId"))
+        .select("category")
+        .distinct()
+    )
+    
+    # Normalize marketplace `id` and filter out user's items
+    marketplace_df = marketplace_df.withColumn("normalized_id", lower(trim(col("id"))))
+    marketplace_df = marketplace_df.filter(col("sellerId") != user_id)
+    
+    # Exclude items already purchased by the user
+    marketplace_df = marketplace_df.join(
+        user_purchased_items,
+        on=col("normalized_id") == col("normalized_itemId"),
+        how="left_anti"
+    )
+    
+    # Step 2: User-based recommendations based on categories of purchased items
+    user_based_recommendations = (
+        marketplace_df.join(purchased_categories, on="category")
+        .select("id", "category", "description", "price", "sellerName", "imageUrl", "quantity")
+        .distinct()
+        .withColumn("purchaseCount", lit(0))  # Add purchaseCount column with default value 0
+    )
+    
+    print(f"User-based Recommendations Count: {user_based_recommendations.count()}")
+    
+    # Step 3: Friend-based recommendations
+    # Get the user's friends
+    friends_list = (
+        users_df.filter(col("userId") == user_id)
+        .select(explode(col("friends")).alias("friendId"))
+        .select("friendId")
+    )
+    
+    friends = friends_list.collect()
+    print(f"Friends List: {friends}")
+    
+    if len(friends) > 0:
+        # Get items purchased by friends
+        friends_purchases = (
+            purchases_df.join(friends_list, purchases_df["userId"] == friends_list["friendId"])
+            .select("itemId")
+            .withColumn("normalized_itemId", lower(trim(col("itemId"))))
+            .groupBy("normalized_itemId")
+            .count()
+            .withColumnRenamed("count", "purchaseCount")
+        )
+        
+        # Exclude items already purchased by the user
+        friends_purchases = friends_purchases.join(
+            user_purchased_items,
+            on="normalized_itemId",
+            how="left_anti"
+        )
+        
+        # Join marketplace with friends' purchases
+        friend_based_recommendations = (
+            marketplace_df.join(
+                friends_purchases,
+                on=marketplace_df["normalized_id"] == friends_purchases["normalized_itemId"]
+            )
+            .select("id", "category", "description", "price", "sellerName", "imageUrl", "quantity", "purchaseCount")
+            .orderBy(col("purchaseCount").desc())
+            .distinct()
+        )
+    else:
+        # Create an empty DataFrame with the same schema as user_based_recommendations
+        friend_based_recommendations = spark.createDataFrame([], user_based_recommendations.schema)
+    
+    print(f"Friend-based Recommendations Count: {friend_based_recommendations.count()}")
+    
+    # Step 4: Combine recommendations
+    # Union the two recommendation DataFrames
+    hybrid_recommendations = user_based_recommendations.unionByName(friend_based_recommendations).distinct()
+    
+    # Optionally, order by purchaseCount and limit the number of recommendations
+    hybrid_recommendations = hybrid_recommendations.orderBy(col("purchaseCount").desc()).limit(10)
+    
+    print(f"Hybrid Recommendations Count: {hybrid_recommendations.count()}")
+    
+    # Collect the results
+    recommendations_list = hybrid_recommendations.rdd.map(lambda row: row.asDict()).collect()
+    
+    if recommendations_list:
+        print("Hybrid Recommendations:")
+        for item in recommendations_list:
+            print({k: item[k] for k in ('id', 'category', 'description', 'purchaseCount')})
+    
+    return recommendations_list
+
+
+
 def write_recommendations_to_firestore(user_id, recommendations, collection_name):
     doc_ref = db.collection(collection_name).document(user_id)
     doc_ref.set({"recommendedItems": recommendations})
@@ -252,9 +358,10 @@ def main(user_id=None):
     if user_id:
         recommendations_by_friends = recommend_items_bought_by_friends(user_id, users_df, purchases_df, marketplace_df)
         recommendations_for_user = recommend_items_based_on_purchases(user_id, purchases_df, marketplace_df)
+        hybrid_recommendations = recommend_items_hybrid(user_id, users_df, purchases_df, marketplace_df)
 
         write_recommendations_to_firestore(user_id, recommendations_by_friends, "friendsRecommendations")
-        write_recommendations_to_firestore(user_id, recommendations_for_user, "userRecommendations")
+        write_recommendations_to_firestore(user_id, hybrid_recommendations, "userRecommendations")
 
 
 if __name__ == "__main__":
