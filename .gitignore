@@ -40,3 +40,5 @@ remarketCmds.txt
 #account key
 spark_jobs/serviceAccountKey.json
 firebaseConfig.js
+
+.firebase/*
