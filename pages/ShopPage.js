@@ -112,7 +112,7 @@ export default function ShopPage() {
     </TouchableOpacity>
   );
 
-  const displayedItems = searchQuery ? filteredItems : sortItemsByDate(items).slice(0, 5);
+  const displayedItems = searchQuery ? filteredItems : sortItemsByDate(items).slice(0, 10);
 
   return (
     <View style={styles.container}>
@@ -144,8 +144,8 @@ export default function ShopPage() {
         ) : (
           <>
             {renderItemsRow('Recently Posted', displayedItems)}
-            {renderItemsRow('Viewed by Friends', viewedByFriends)}
-            {renderItemsRow('Recommended for You', userRecommendations)}
+            {renderItemsRow('Viewed by Friends', viewedByFriends.slice(0, 10))} 
+            {renderItemsRow('Recommended for You', userRecommendations.slice(0, 10))}
           </>
         )}
 
