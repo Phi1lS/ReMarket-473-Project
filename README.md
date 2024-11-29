@@ -9,7 +9,7 @@ ReMarket is a modern, interactive social marketplace application designed for we
     [exp://u.expo.dev/80c43a8d-5c6a-4fa7-baad-25e789fc3459/group/07275117-44f4-412c-b6ac-117044cb95f3](exp://u.expo.dev/80c43a8d-5c6a-4fa7-baad-25e789fc3459/group/07275117-44f4-412c-b6ac-117044cb95f3)
   - Alternatively, copy and paste the link manually if it doesn't open automatically.
 
-Last updated: 11.26.2024
+Last updated: 11.29.2024
 
 ## Features
 
