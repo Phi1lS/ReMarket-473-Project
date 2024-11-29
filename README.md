@@ -6,7 +6,7 @@ ReMarket is a modern, interactive social marketplace application designed for we
 
 - Expo Go App:
   - Open the following link in the Expo Go app on your mobile device:
-    [exp://u.expo.dev/80c43a8d-5c6a-4fa7-baad-25e789fc3459/group/f4ac8d34-a022-4e3a-a6fc-58c3a7c5de88](exp://u.expo.dev/80c43a8d-5c6a-4fa7-baad-25e789fc3459/group/f4ac8d34-a022-4e3a-a6fc-58c3a7c5de88)
+    [exp://u.expo.dev/80c43a8d-5c6a-4fa7-baad-25e789fc3459/group/fc5a412c-8a0a-44e2-8196-be126c9a7585](exp://u.expo.dev/80c43a8d-5c6a-4fa7-baad-25e789fc3459/group/fc5a412c-8a0a-44e2-8196-be126c9a7585)
   - Alternatively, copy and paste the link manually if it doesn't open automatically.
 
 Last updated: 11.29.2024
