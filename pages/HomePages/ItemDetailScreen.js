@@ -157,7 +157,11 @@ export default function ItemDetailScreen({ route }) {
           </View>
         </View>
 
-        <Image source={item.imageUrl ? { uri: item.imageUrl } : require('../../assets/item.png')} style={styles.itemImage} />
+        <Image 
+          source={item.imageUrl ? { uri: item.imageUrl } : require('../../assets/item.png')} 
+          style={styles.itemImage} 
+          resizeMode="contain" // Ensures the aspect ratio is preserved 
+        />
 
         <View style={styles.purchaseActions}>
           <TouchableOpacity onPress={handleLikeToggle} style={styles.likeButton}>

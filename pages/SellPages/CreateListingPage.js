@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Image, ScrollView, StatusBar, Platform, Alert, Keyboard, TouchableWithoutFeedback } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, Image, ScrollView, StatusBar, Platform, Alert, Keyboard, KeyboardAvoidingView } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -141,14 +141,20 @@ export default function CreateListingPage({ navigation }) {
   };
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.container}>
           <Text style={styles.header}>Create New Listing</Text>
 
           <TouchableOpacity onPress={pickImage} style={styles.imagePicker}>
             {image ? (
-              <Image source={{ uri: image }} style={styles.image} />
+              <Image 
+                source={{ uri: image }} 
+                style={styles.image} 
+                resizeMode="contain" // Ensures the aspect ratio is preserved
+              />
             ) : (
               <View style={styles.imagePlaceholderContainer}>
                 <Ionicons name="camera-outline" size={32} color="#888" />
@@ -215,7 +221,7 @@ export default function CreateListingPage({ navigation }) {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
   );
 }
 
