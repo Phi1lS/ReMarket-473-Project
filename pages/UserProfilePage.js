@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, ActivityIndicator, Alert, Platform } from 'react-native';
 import { Avatar } from 'react-native-paper';
 import { Ionicons } from 'react-native-vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -326,6 +326,25 @@ export default function UserProfilePage({ route }) {
     }
   }, [selectedTab, userId]);
 
+  const confirmRemoveFriend = () => {
+    if (Platform.OS === 'web') {
+      const isConfirmed = window.confirm(`Are you sure you want to remove ${user.firstName} as a friend?`);
+      if (isConfirmed) {
+        handleRemoveFriend();
+      }
+    } else {
+      Alert.alert(
+        'Remove Friend',
+        `Are you sure you want to remove ${user.firstName} as a friend?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Remove', style: 'destructive', onPress: handleRemoveFriend },
+        ],
+        { cancelable: true }
+      );
+    }
+  };
+  
   const handleRemoveFriend = async () => {
     try {
       // Remove friend from current user's friends subcollection
@@ -360,6 +379,7 @@ export default function UserProfilePage({ route }) {
       Alert.alert("Friend Removed", `You are no longer friends with ${user.firstName}.`);
     } catch (error) {
       console.error("Error removing friend:", error);
+      Alert.alert("Error", "Failed to remove friend. Please try again.");
     }
   };
 
@@ -413,14 +433,7 @@ export default function UserProfilePage({ route }) {
         style={styles.addFriendButton}
         onPress={() => {
           if (isFriend) {
-            Alert.alert(
-              "Remove Friend",
-              `Are you sure you want to remove ${user.firstName} as a friend?`,
-              [
-                { text: "Cancel", style: "cancel" },
-                { text: "Yes", onPress: handleRemoveFriend }
-              ]
-            );
+            confirmRemoveFriend();
           } else {
             handleAddFriend();
           }

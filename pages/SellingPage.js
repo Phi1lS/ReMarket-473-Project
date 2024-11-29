@@ -60,15 +60,22 @@ export default function SellingPage() {
   };
 
   const confirmDeleteListing = (itemId) => {
-    Alert.alert(
-      'Delete Listing',
-      'Are you sure you want to delete this listing?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => handleDeleteListing(itemId) },
-      ],
-      { cancelable: true }
-    );
+    if (Platform.OS === 'web') {
+      const isConfirmed = window.confirm('Are you sure you want to delete this listing?');
+      if (isConfirmed) {
+        handleDeleteListing(itemId);
+      }
+    } else {
+      Alert.alert(
+        'Delete Listing',
+        'Are you sure you want to delete this listing?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete', style: 'destructive', onPress: () => handleDeleteListing(itemId) },
+        ],
+        { cancelable: true }
+      );
+    }
   };
 
   const renderListingItem = ({ item }) => (

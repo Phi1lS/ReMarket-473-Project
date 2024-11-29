@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { signOut } from 'firebase/auth'; // Import signOut function from Firebase
 import { auth } from '../../firebaseConfig'; // Ensure you have the correct Firebase config path
@@ -23,21 +23,28 @@ export default function SettingsPage({ navigation }) {
 
   // Show a confirmation prompt before logout
   const confirmLogout = () => {
-    Alert.alert(
-      'Confirm Logout',
-      'Are you sure you want to log out?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel', // Default style
-        },
-        {
-          text: 'Log Out', // Log out button
-          onPress: () => handleLogout(), // Call handleLogout on confirmation
-        },
-      ],
-      { cancelable: true }
-    );
+    if (Platform.OS === 'web') {
+      const isConfirmed = window.confirm('Are you sure you want to log out?');
+      if (isConfirmed) {
+        handleLogout();
+      }
+    } else {
+      Alert.alert(
+        'Confirm Logout',
+        'Are you sure you want to log out?',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel', // Default style
+          },
+          {
+            text: 'Log Out', // Log out button
+            onPress: () => handleLogout(), // Call handleLogout on confirmation
+          },
+        ],
+        { cancelable: true }
+      );
+    }
   };
 
   // Perform the logout operation
