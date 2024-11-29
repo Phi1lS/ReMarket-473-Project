@@ -143,6 +143,10 @@ export default function CreateListingPage({ navigation }) {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
+      contentContainerStyle={styles.scrollContainer}
+      keyboardShouldPersistTaps="handled" // Ensures taps dismiss keyboard
+      showsVerticalScrollIndicator={true} // Ensures scroll indicator is visible
+      style={{ flex: 1, overflow: 'auto' }} // Ensures web scrolling works
     >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.container}>
@@ -231,6 +235,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     padding: 20,
     paddingTop: Platform.OS === 'ios' ? 60 : StatusBar.currentHeight + 15,
+  },
+  scrollContainer: {
+    flexGrow: 1,
   },
   header: {
     fontSize: 28,
