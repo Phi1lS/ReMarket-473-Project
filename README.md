@@ -70,3 +70,4 @@ Last updated: 11.29.2024
 - **Phillip Solis** - [GitHub](https://github.com/Phi1lS) [Website](https://phillipsolis.com)
 - **Nathan Halash** - [GitHub](https://github.com/nhalash)
 - **Tom VandenBulck** - [GitHub](https://github.com/tvanden3)
+- **Natalie Hoang (Logo)** - [GitHub](https://github.com/hoangnatalie)
